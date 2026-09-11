@@ -50,7 +50,7 @@ export function AppLayout({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
 
-  const items = NAV.filter((i) => i.roles.includes((role ?? "admin") as "admin" | "cliente"));
+  const items = NAV.filter((i) => (i.roles as readonly string[]).includes(role ?? "admin"));
   const initials = (fullName ?? user?.email ?? "U").slice(0, 2).toUpperCase();
 
   async function signOut() {
