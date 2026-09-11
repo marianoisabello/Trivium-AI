@@ -59,7 +59,7 @@ export const Route = createFileRoute("/_authenticated/escenarios")({
       },
     ],
   }),
-  component: EscenariosPage;
+  component: EscenariosPage,
 });
 
 const uid = () => Math.random().toString(36).slice(2, 9);
