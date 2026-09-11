@@ -46,25 +46,15 @@ function Onboarding() {
     }
     setErrors({});
     setSaving(true);
-    let orgId = organization?.id;
-    if (orgId) {
-      await supabase
-        .from("organizations")
-        .update({ name: org.name.trim(), industry: org.industry, size: org.size })
-        .eq("id", orgId);
-    } else {
-      const { data, error } = await supabase
-        .from("organizations")
-        .insert({ name: org.name.trim(), industry: org.industry, size: org.size })
-        .select("id")
-        .single();
-      if (error || !data) {
-        setSaving(false);
-        toast.error("No pudimos guardar la organización", { description: error?.message });
-        return;
-      }
-      orgId = data.id;
-      await supabase.from("profiles").update({ organization_id: orgId }).eq("id", user!.id);
+    const { error } = await supabase.rpc("create_organization", {
+      _name: org.name.trim(),
+      ...(org.industry.trim() ? { _industry: org.industry.trim() } : {}),
+      ...(org.size.trim() ? { _size: org.size.trim() } : {}),
+    });
+    if (error) {
+      setSaving(false);
+      toast.error("No pudimos guardar la organización", { description: error.message });
+      return;
     }
     await refresh();
     setSaving(false);
