@@ -48,8 +48,8 @@ function Onboarding() {
     setSaving(true);
     const { error } = await supabase.rpc("create_organization", {
       _name: org.name.trim(),
-      _industry: org.industry.trim() || null,
-      _size: org.size.trim() || null,
+      _industry: org.industry.trim() || undefined,
+      _size: org.size.trim() || undefined,
     });
     if (error) {
       setSaving(false);
