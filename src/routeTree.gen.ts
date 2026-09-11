@@ -18,6 +18,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEscenariosRouteImport } from './routes/_authenticated/escenarios'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedProductosRouteImport } from './routes/_authenticated/productos'
+import { Route as AuthenticatedSustentabilidadRouteImport } from './routes/_authenticated/sustentabilidad'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +65,12 @@ const AuthenticatedProductosRoute = AuthenticatedProductosRouteImport.update({
   path: '/productos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSustentabilidadRoute =
+  AuthenticatedSustentabilidadRouteImport.update({
+    id: '/sustentabilidad',
+    path: '/sustentabilidad',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/escenarios': typeof AuthenticatedEscenariosRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/productos': typeof AuthenticatedProductosRoute
+  '/sustentabilidad': typeof AuthenticatedSustentabilidadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -84,6 +92,7 @@ export interface FileRoutesByTo {
   '/escenarios': typeof AuthenticatedEscenariosRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/productos': typeof AuthenticatedProductosRoute
+  '/sustentabilidad': typeof AuthenticatedSustentabilidadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,6 +105,7 @@ export interface FileRoutesById {
   '/_authenticated/escenarios': typeof AuthenticatedEscenariosRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/productos': typeof AuthenticatedProductosRoute
+  '/_authenticated/sustentabilidad': typeof AuthenticatedSustentabilidadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/escenarios'
     | '/onboarding'
     | '/productos'
+    | '/sustentabilidad'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/escenarios'
     | '/onboarding'
     | '/productos'
+    | '/sustentabilidad'
   id:
     | '__root__'
     | '/'
@@ -129,6 +141,7 @@ export interface FileRouteTypes {
     | '/_authenticated/escenarios'
     | '/_authenticated/onboarding'
     | '/_authenticated/productos'
+    | '/_authenticated/sustentabilidad'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -202,6 +215,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sustentabilidad': {
+      id: '/_authenticated/sustentabilidad'
+      path: '/sustentabilidad'
+      fullPath: '/sustentabilidad'
+      preLoaderRoute: typeof AuthenticatedSustentabilidadRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -212,6 +232,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEscenariosRoute: typeof AuthenticatedEscenariosRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedProductosRoute: typeof AuthenticatedProductosRoute
+  AuthenticatedSustentabilidadRoute: typeof AuthenticatedSustentabilidadRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -221,6 +242,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEscenariosRoute: AuthenticatedEscenariosRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedProductosRoute: AuthenticatedProductosRoute,
+  AuthenticatedSustentabilidadRoute: AuthenticatedSustentabilidadRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
