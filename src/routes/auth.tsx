@@ -50,10 +50,10 @@ function AuthPage() {
   function validate(withName: boolean) {
     const next: Record<string, string> = {};
     const e = emailSchema.safeParse(email);
-    if (!e.success) next.email = e.error.issues[0]!.message;
+    if (!e.success) next["email"] = e.error.issues[0]!.message;
     const p = passwordSchema.safeParse(password);
-    if (!p.success) next.password = p.error.issues[0]!.message;
-    if (withName && fullName.trim().length < 2) next.fullName = "Ingresá tu nombre y apellido";
+    if (!p.success) next["password"] = p.error.issues[0]!.message;
+    if (withName && fullName.trim().length < 2) next["fullName"] = "Ingresá tu nombre y apellido";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -124,9 +124,9 @@ function AuthPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!errors.email}
+                    aria-invalid={!!errors["email"]}
                   />
-                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                  {errors["email"] && <p className="text-xs text-destructive">{errors["email"]}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pass-in">Contraseña</Label>
@@ -135,9 +135,9 @@ function AuthPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!errors.password}
+                    aria-invalid={!!errors["password"]}
                   />
-                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                  {errors["password"] && <p className="text-xs text-destructive">{errors["password"]}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Ingresando..." : "Ingresar"}
@@ -153,9 +153,9 @@ function AuthPage() {
                     id="name-up"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    aria-invalid={!!errors.fullName}
+                    aria-invalid={!!errors["fullName"]}
                   />
-                  {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+                  {errors["fullName"] && <p className="text-xs text-destructive">{errors["fullName"]}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email-up">Email</Label>
@@ -164,9 +164,9 @@ function AuthPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!errors.email}
+                    aria-invalid={!!errors["email"]}
                   />
-                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                  {errors["email"] && <p className="text-xs text-destructive">{errors["email"]}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pass-up">Contraseña</Label>
@@ -175,9 +175,9 @@ function AuthPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!errors.password}
+                    aria-invalid={!!errors["password"]}
                   />
-                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                  {errors["password"] && <p className="text-xs text-destructive">{errors["password"]}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role-up">Tipo de cuenta</Label>

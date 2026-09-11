@@ -102,14 +102,14 @@ function EscenariosPage() {
 
   function validate() {
     const next: Record<string, string> = {};
-    if (name.trim().length < 3) next.name = "El nombre debe tener al menos 3 caracteres";
+    if (name.trim().length < 3) next["name"] = "El nombre debe tener al menos 3 caracteres";
     if (situation.trim().length < 10)
-      next.situation = "Describí la situación actual (mínimo 10 caracteres)";
-    if (!assets.some((a) => a.name.trim())) next.assets = "Cargá al menos un activo con nombre";
+      next["situation"] = "Describí la situación actual (mínimo 10 caracteres)";
+    if (!assets.some((a) => a.name.trim())) next["assets"] = "Cargá al menos un activo con nombre";
     const totalWeight = assets.reduce((acc, a) => acc + Number(a.weight || 0), 0);
-    if (totalWeight > 100) next.assets = "La suma de los pesos no puede superar 100%";
+    if (totalWeight > 100) next["assets"] = "La suma de los pesos no puede superar 100%";
     if (!variables.some((v) => v.name.trim()))
-      next.variables = "Cargá al menos una variable independiente";
+      next["variables"] = "Cargá al menos una variable independiente";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -228,10 +228,10 @@ function EscenariosPage() {
                 id="an-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                aria-invalid={!!errors.name}
+                aria-invalid={!!errors["name"]}
                 maxLength={120}
               />
-              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+              {errors["name"] && <p className="text-xs text-destructive">{errors["name"]}</p>}
             </div>
 
             <div className="space-y-2">
@@ -241,10 +241,10 @@ function EscenariosPage() {
                 rows={4}
                 value={situation}
                 onChange={(e) => setSituation(e.target.value)}
-                aria-invalid={!!errors.situation}
+                aria-invalid={!!errors["situation"]}
                 maxLength={2000}
               />
-              {errors.situation && <p className="text-xs text-destructive">{errors.situation}</p>}
+              {errors["situation"] && <p className="text-xs text-destructive">{errors["situation"]}</p>}
             </div>
 
             <div className="space-y-3">
@@ -358,7 +358,7 @@ function EscenariosPage() {
                   </TableBody>
                 </Table>
               </div>
-              {errors.assets && <p className="text-xs text-destructive">{errors.assets}</p>}
+              {errors["assets"] && <p className="text-xs text-destructive">{errors["assets"]}</p>}
             </div>
 
             <div className="space-y-3">
@@ -444,7 +444,7 @@ function EscenariosPage() {
                   </div>
                 ))}
               </div>
-              {errors.variables && <p className="text-xs text-destructive">{errors.variables}</p>}
+              {errors["variables"] && <p className="text-xs text-destructive">{errors["variables"]}</p>}
             </div>
 
             <Button onClick={handleGenerate} disabled={generating} className="w-full">

@@ -150,9 +150,9 @@ function Onboarding() {
                   id="org-name"
                   value={org.name}
                   onChange={(e) => setOrg({ ...org, name: e.target.value })}
-                  aria-invalid={!!errors.name}
+                  aria-invalid={!!errors["name"]}
                 />
-                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                {errors["name"] && <p className="text-xs text-destructive">{errors["name"]}</p>}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">

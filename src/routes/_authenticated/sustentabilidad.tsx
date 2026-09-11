@@ -113,8 +113,8 @@ function SustentabilidadPage() {
 
   async function handleGenerate() {
     const next: Record<string, string> = {};
-    if (res.materials.trim().length < 3) next.materials = "Describí los materiales disponibles";
-    if (res.capacities.trim().length < 3) next.capacities = "Describí las capacidades instaladas";
+    if (res.materials.trim().length < 3) next["materials"] = "Describí los materiales disponibles";
+    if (res.capacities.trim().length < 3) next["capacities"] = "Describí las capacidades instaladas";
     setErrors(next);
     if (Object.keys(next).length) {
       toast.error("Completá los datos de recursos");

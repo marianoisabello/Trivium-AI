@@ -461,8 +461,8 @@ function CoCreacion() {
 
   async function handleGenerate() {
     const next: Record<string, string> = {};
-    if (needs.trim().length < 10) next.needs = "Contanos tu necesidad (mínimo 10 caracteres)";
-    if (!budget || budget <= 0) next.budget = "Ingresá un presupuesto válido";
+    if (needs.trim().length < 10) next["needs"] = "Contanos tu necesidad (mínimo 10 caracteres)";
+    if (!budget || budget <= 0) next["budget"] = "Ingresá un presupuesto válido";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -501,10 +501,10 @@ function CoCreacion() {
               rows={4}
               value={needs}
               onChange={(e) => setNeeds(e.target.value)}
-              aria-invalid={!!errors.needs}
+              aria-invalid={!!errors["needs"]}
               maxLength={1000}
             />
-            {errors.needs && <p className="text-xs text-destructive">{errors.needs}</p>}
+            {errors["needs"] && <p className="text-xs text-destructive">{errors["needs"]}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="budget">Presupuesto (USD) *</Label>
@@ -514,9 +514,9 @@ function CoCreacion() {
               min={0}
               value={budget}
               onChange={(e) => setBudget(Number(e.target.value))}
-              aria-invalid={!!errors.budget}
+              aria-invalid={!!errors["budget"]}
             />
-            {errors.budget && <p className="text-xs text-destructive">{errors.budget}</p>}
+            {errors["budget"] && <p className="text-xs text-destructive">{errors["budget"]}</p>}
           </div>
           <Button onClick={handleGenerate} disabled={loading} className="w-full">
             <Sparkles className="mr-2 size-4" />
