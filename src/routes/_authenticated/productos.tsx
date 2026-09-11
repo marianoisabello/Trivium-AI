@@ -132,7 +132,7 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
         channel: p.channel as Channel,
         schedule: p.schedule as Cadence,
         status: p.status as Proposal["status"],
-        template: p.template ?? undefined,
+        ...(p.template ? { template: p.template } : {}),
       })),
     );
     setLoading(false);
