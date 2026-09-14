@@ -216,6 +216,20 @@ function AuthPage() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Ingresando..." : "Ingresar"}
                 </Button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    onClick={() => {
+                      setForgotOpen(true);
+                      setForgotEmail(email);
+                      setForgotError(null);
+                      setForgotSent(false);
+                    }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
               </form>
             </TabsContent>
 
