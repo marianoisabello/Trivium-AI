@@ -137,6 +137,52 @@ function AuthPage() {
         </Link>
 
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          {forgotOpen ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Recuperar contraseña</h2>
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setForgotOpen(false);
+                    setForgotSent(false);
+                    setForgotError(null);
+                  }}
+                >
+                  Volver
+                </button>
+              </div>
+              {forgotSent ? (
+                <p className="text-sm text-muted-foreground">
+                  Te enviamos un enlace a <strong>{forgotEmail.trim()}</strong> para restablecer tu
+                  contraseña. Revisá tu correo y seguí las instrucciones.
+                </p>
+              ) : (
+                <form className="space-y-4" onSubmit={handleForgotPassword} noValidate>
+                  <p className="text-sm text-muted-foreground">
+                    Ingresá tu email y te enviaremos un enlace para crear una nueva contraseña.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      aria-invalid={!!forgotError}
+                    />
+                    {forgotError && (
+                      <p className="text-xs text-destructive">{forgotError}</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={forgotLoading}>
+                    {forgotLoading ? "Enviando…" : "Enviar enlace"}
+                  </Button>
+                </form>
+              )}
+            </div>
+          ) : (
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Iniciar sesión</TabsTrigger>
