@@ -40,6 +40,11 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"admin" | "cliente">("admin");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
@@ -98,6 +103,29 @@ function AuthPage() {
     }
   }
 
+  async function handleForgotPassword(ev: React.FormEvent) {
+    ev.preventDefault();
+    setForgotError(null);
+    const e = emailSchema.safeParse(forgotEmail);
+    if (!e.success) {
+      setForgotError(e.error.issues[0]!.message);
+      return;
+    }
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    if (error) {
+      toast.error("No pudimos enviar el email", { description: error.message });
+      return;
+    }
+    setForgotSent(true);
+    toast.success("Revisá tu email", {
+      description: "Te enviamos un enlace para restablecer tu contraseña.",
+    });
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md">
@@ -109,6 +137,52 @@ function AuthPage() {
         </Link>
 
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          {forgotOpen ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Recuperar contraseña</h2>
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setForgotOpen(false);
+                    setForgotSent(false);
+                    setForgotError(null);
+                  }}
+                >
+                  Volver
+                </button>
+              </div>
+              {forgotSent ? (
+                <p className="text-sm text-muted-foreground">
+                  Te enviamos un enlace a <strong>{forgotEmail.trim()}</strong> para restablecer tu
+                  contraseña. Revisá tu correo y seguí las instrucciones.
+                </p>
+              ) : (
+                <form className="space-y-4" onSubmit={handleForgotPassword} noValidate>
+                  <p className="text-sm text-muted-foreground">
+                    Ingresá tu email y te enviaremos un enlace para crear una nueva contraseña.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      aria-invalid={!!forgotError}
+                    />
+                    {forgotError && (
+                      <p className="text-xs text-destructive">{forgotError}</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={forgotLoading}>
+                    {forgotLoading ? "Enviando…" : "Enviar enlace"}
+                  </Button>
+                </form>
+              )}
+            </div>
+          ) : (
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Iniciar sesión</TabsTrigger>
@@ -142,6 +216,20 @@ function AuthPage() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Ingresando..." : "Ingresar"}
                 </Button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    onClick={() => {
+                      setForgotOpen(true);
+                      setForgotEmail(email);
+                      setForgotError(null);
+                      setForgotSent(false);
+                    }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
               </form>
             </TabsContent>
 
@@ -197,6 +285,7 @@ function AuthPage() {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </div>
       </div>
     </div>
