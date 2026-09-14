@@ -40,6 +40,11 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"admin" | "cliente">("admin");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
@@ -96,6 +101,29 @@ function AuthPage() {
         description: "Te enviamos un enlace para confirmar tu cuenta.",
       });
     }
+  }
+
+  async function handleForgotPassword(ev: React.FormEvent) {
+    ev.preventDefault();
+    setForgotError(null);
+    const e = emailSchema.safeParse(forgotEmail);
+    if (!e.success) {
+      setForgotError(e.error.issues[0]!.message);
+      return;
+    }
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    if (error) {
+      toast.error("No pudimos enviar el email", { description: error.message });
+      return;
+    }
+    setForgotSent(true);
+    toast.success("Revisá tu email", {
+      description: "Te enviamos un enlace para restablecer tu contraseña.",
+    });
   }
 
   return (
