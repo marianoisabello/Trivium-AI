@@ -1,8 +1,21 @@
 import { GoogleAuth } from "google-auth-library";
-import type { AnalysisInput, Scenario } from "@/lib/types";
-import type { AIProvider } from "@/lib/ai/types";
-import { buildScenariosPrompt } from "@/lib/ai/prompts";
+import type { AnalysisInput, CoCreationInput, ResourcesInput, Scenario } from "@/lib/types";
+import type {
+  AIProvider,
+  InitiativeDraft,
+  ProductSuggestionDraft,
+  ProposalDraft,
+  ProposalsGenerateInput,
+} from "@/lib/ai/types";
+import {
+  buildInitiativesPrompt,
+  buildProposalsPrompt,
+  buildRecommendationsPrompt,
+  buildScenariosPrompt,
+} from "@/lib/ai/prompts";
 import { parseScenariosResponse } from "@/lib/ai/scenarioParser";
+import { parseProposalsResponse, parseRecommendationsResponse } from "@/lib/ai/productsParser";
+import { parseInitiativesResponse } from "@/lib/ai/sustainabilityParser";
 import { localRiskCalculator } from "@/lib/risk";
 import { getQuoteWithFallback } from "@/lib/market";
 
@@ -84,6 +97,60 @@ export async function generateScenariosViaModel(
   }
 }
 
+/** Mismo patrón de reintento-una-vez que generateScenariosViaModel, para propuestas automáticas. */
+export async function generateProposalsViaModel(
+  input: ProposalsGenerateInput,
+  callModel: (prompt: string) => Promise<string> = callGenerateContent,
+): Promise<ProposalDraft[]> {
+  const prompt = buildProposalsPrompt(input);
+  try {
+    return parseProposalsResponse(await callModel(prompt));
+  } catch (firstError) {
+    try {
+      return parseProposalsResponse(await callModel(prompt));
+    } catch {
+      throw firstError;
+    }
+  }
+}
+
+/** Mismo patrón de reintento-una-vez, para recomendaciones de co-creación. */
+export async function generateRecommendationsViaModel(
+  input: CoCreationInput,
+  callModel: (prompt: string) => Promise<string> = callGenerateContent,
+): Promise<ProductSuggestionDraft[]> {
+  const prompt = buildRecommendationsPrompt(input);
+  try {
+    return parseRecommendationsResponse(await callModel(prompt));
+  } catch (firstError) {
+    try {
+      return parseRecommendationsResponse(await callModel(prompt));
+    } catch {
+      throw firstError;
+    }
+  }
+}
+
+/** Mismo patrón de reintento-una-vez, para iniciativas de sustentabilidad. */
+export async function generateInitiativesViaModel(
+  input: ResourcesInput,
+  callModel: (prompt: string) => Promise<string> = callGenerateContent,
+): Promise<InitiativeDraft[]> {
+  const prompt = buildInitiativesPrompt(input);
+  try {
+    return parseInitiativesResponse(await callModel(prompt));
+  } catch (firstError) {
+    try {
+      return parseInitiativesResponse(await callModel(prompt));
+    } catch {
+      throw firstError;
+    }
+  }
+}
+
 export const vertexProvider: AIProvider = {
   generateScenarios: (input) => generateScenariosViaModel(input),
+  generateProposals: (input) => generateProposalsViaModel(input),
+  generateRecommendations: (input) => generateRecommendationsViaModel(input),
+  generateInitiatives: (input) => generateInitiativesViaModel(input),
 };

@@ -140,19 +140,8 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
 
   async function handleGenerate() {
     setGenerating(true);
-    const generated = await generateProposals(segment);
+    const generated = await generateProposals(segment, channel, cadence);
     if (orgId) {
-      await supabase.from("proposals").insert(
-        generated.map((p) => ({
-          organization_id: orgId,
-          name: p.name,
-          description: p.description,
-          target_client: p.targetClient,
-          channel,
-          schedule: cadence,
-          status: "borrador",
-        })),
-      );
       await load();
     } else {
       setRows([...generated, ...rows]);

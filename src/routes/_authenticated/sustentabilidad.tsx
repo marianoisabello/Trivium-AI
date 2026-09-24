@@ -124,32 +124,6 @@ function SustentabilidadPage() {
     setGenerating(true);
     const generated = await generateInitiatives(res);
     if (organization) {
-      for (const ini of generated) {
-        const { data } = await supabase
-          .from("initiatives")
-          .insert({
-            organization_id: organization.id,
-            title: ini.title,
-            scopes: ini.scopes,
-            goal: ini.goal,
-            plan: ini.plan as unknown as never,
-            status: ini.status,
-          })
-          .select("id")
-          .single();
-        if (data) {
-          await supabase.from("kpis").insert(
-            ini.kpis.map((k) => ({
-              organization_id: organization.id,
-              initiative_id: data.id,
-              name: k.name,
-              unit: k.unit,
-              target_value: k.target,
-              current_value: k.current,
-            })),
-          );
-        }
-      }
       await load();
     } else {
       setInitiatives([...generated, ...initiatives]);
