@@ -14,7 +14,6 @@ import {
 } from "recharts";
 import jsPDF from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,7 +72,6 @@ interface HistoryItem {
 }
 
 function EscenariosPage() {
-  const { organization, user } = useAuth();
   const [name, setName] = useState("");
   const [situation, setSituation] = useState("");
   const [assets, setAssets] = useState<Asset[]>([
@@ -121,46 +119,22 @@ function EscenariosPage() {
     }
     setGenerating(true);
     setScenarios([]);
-    const result = await generateScenarios({
-      name,
-      currentSituation: situation,
-      assets: assets.filter((a) => a.name.trim()),
-      variables: variables.filter((v) => v.name.trim()),
-    });
-    setScenarios(result);
-    setGenerating(false);
-
-    if (organization) {
-      const { data: analysis } = await supabase
-        .from("analyses")
-        .insert({
-          organization_id: organization.id,
-          created_by: user?.id ?? null,
-          name,
-          current_situation: situation,
-          assets: assets as unknown as never,
-          variables: variables as unknown as never,
-          status: "completado",
-        })
-        .select("id")
-        .single();
-      if (analysis) {
-        await supabase.from("scenarios").insert(
-          result.map((s) => ({
-            organization_id: organization.id,
-            analysis_id: analysis.id,
-            type: s.type,
-            expected_return: s.expectedReturn,
-            risk: s.risk,
-            probability: s.probability,
-            narrative: s.narrative,
-            drivers: s.drivers as unknown as never,
-          })),
-        );
-        void loadHistory();
-      }
+    try {
+      const result = await generateScenarios({
+        name,
+        currentSituation: situation,
+        assets: assets.filter((a) => a.name.trim()),
+        variables: variables.filter((v) => v.name.trim()),
+      });
+      setScenarios(result);
+      void loadHistory();
+      toast.success("Escenarios generados");
+    } catch (error) {
+      console.error(error);
+      toast.error("No pudimos generar los escenarios. Probá de nuevo en unos minutos.");
+    } finally {
+      setGenerating(false);
     }
-    toast.success("Escenarios generados");
   }
 
   function exportPdf() {
@@ -244,7 +218,9 @@ function EscenariosPage() {
                 aria-invalid={!!errors["situation"]}
                 maxLength={2000}
               />
-              {errors["situation"] && <p className="text-xs text-destructive">{errors["situation"]}</p>}
+              {errors["situation"] && (
+                <p className="text-xs text-destructive">{errors["situation"]}</p>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -255,7 +231,10 @@ function EscenariosPage() {
                   size="sm"
                   variant="outline"
                   onClick={() =>
-                    setAssets([...assets, { id: uid(), name: "", type: "acción", value: 0, weight: 0 }])
+                    setAssets([
+                      ...assets,
+                      { id: uid(), name: "", type: "acción", value: 0, weight: 0 },
+                    ])
                   }
                 >
                   <Plus className="mr-1 size-4" /> Activo
@@ -404,7 +383,10 @@ function EscenariosPage() {
                           )
                         }
                       >
-                        <SelectTrigger aria-label={`Impacto de la variable ${i + 1}`} className="w-28">
+                        <SelectTrigger
+                          aria-label={`Impacto de la variable ${i + 1}`}
+                          className="w-28"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -444,7 +426,9 @@ function EscenariosPage() {
                   </div>
                 ))}
               </div>
-              {errors["variables"] && <p className="text-xs text-destructive">{errors["variables"]}</p>}
+              {errors["variables"] && (
+                <p className="text-xs text-destructive">{errors["variables"]}</p>
+              )}
             </div>
 
             <Button onClick={handleGenerate} disabled={generating} className="w-full">
