@@ -13,7 +13,7 @@
 - [x] Persistir análisis y escenarios en Supabase; conectar frontend. Nota: se usa el cliente Supabase con el JWT del usuario (ya resuelto por `requireSupabaseAuth`, respeta RLS) en vez de `SUPABASE_SERVICE_ROLE_KEY` — no hace falta bypasear RLS para un insert dentro de la propia organización, y así se evita un cliente con permisos más amplios de lo necesario.
 - [x] Tests unitarios (Vitest) del cálculo de riesgo, el schema Zod de escenarios y el parser + reintento de la respuesta del LLM.
 
-Pendiente de credenciales reales para probar de punta a punta: `GOOGLE_APPLICATION_CREDENTIALS_JSON`, `VERTEX_AI_MODEL` (y opcional `VERTEX_AI_LOCATION`, default `us-central1`), `MARKET_DATA_API_KEY`. Sin ellas, `AI_PROVIDER=vertex` (default) falla en runtime con un error claro; usar `AI_PROVIDER=mock` para desarrollo local sin credenciales de Google.
+Credenciales de Google Cloud creadas (2026-09-24): proyecto `trivium-509620` (org pampai.com), service account `trivium-scenarios-vertex@trivium-509620.iam.gserviceaccount.com` con rol `roles/aiplatform.user`, API de Vertex AI ya habilitada, billing ya vinculado. `GOOGLE_APPLICATION_CREDENTIALS_JSON` y `VERTEX_AI_MODEL=gemini-3.8-flash` viven en `.env.local` (gitignored, no en `.env` porque ese archivo está trackeado en el repo). `VERTEX_AI_LOCATION` default `global` (no regional) — es el endpoint recomendado actual para Gemini. Pendiente: `MARKET_DATA_API_KEY` (Alpha Vantage) para datos de mercado — sin ella, `getQuoteWithFallback` degrada a `dataSource: "manual"` automáticamente, no rompe nada. Para desarrollar sin pegarle a Vertex real, `AI_PROVIDER=mock`.
 
 ## Fase 2 — Generador de productos · 2–3 semanas
 - [ ] `/api/products/recommend`: historial de consumo del cliente + catálogo → recomendaciones LLM.

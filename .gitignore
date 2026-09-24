@@ -25,6 +25,11 @@ pnpm-lock.yaml
 .wrangler/
 .dev.vars
 
+# Variables de entorno con secretos (.env queda trackeado por decisión previa
+# del repo — no tocar su historial acá; todo secreto nuevo va en .env.local)
+.env.local
+.env.*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
