@@ -41,7 +41,8 @@ async function callGenerateContent(prompt: string): Promise<string> {
   // El endpoint "global" (sin prefijo regional) es el recomendado por Google
   // para los modelos Gemini actuales; solo las locations regionales llevan
   // el prefijo "<location>-" en el host.
-  const host = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
+  const host =
+    location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
   const url = `https://${host}/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
 
   const { data } = await client.request<VertexGenerateContentResponse>({
