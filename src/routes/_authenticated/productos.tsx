@@ -540,9 +540,7 @@ function CoCreacion() {
                     type="button"
                     aria-pressed={active}
                     onClick={() =>
-                      setHistory(
-                        active ? history.filter((h) => h !== chip) : [...history, chip],
-                      )
+                      setHistory(active ? history.filter((h) => h !== chip) : [...history, chip])
                     }
                     className={
                       active

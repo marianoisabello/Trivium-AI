@@ -27,10 +27,7 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
-const passwordSchema = z
-  .string()
-  .min(6, "La contraseña debe tener al menos 6 caracteres")
-  .max(72);
+const passwordSchema = z.string().min(6, "La contraseña debe tener al menos 6 caracteres").max(72);
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -100,9 +97,7 @@ function ResetPasswordPage() {
         </Link>
 
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-foreground">
-            Restablecer contraseña
-          </h1>
+          <h1 className="text-xl font-semibold text-foreground">Restablecer contraseña</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Definí una nueva contraseña para tu cuenta.
           </p>

@@ -69,7 +69,9 @@ function Onboarding() {
       .eq("id", user!.id)
       .maybeSingle();
     if (prof?.organization_id) {
-      await supabase.from("org_resources").insert({ organization_id: prof.organization_id, ...res });
+      await supabase
+        .from("org_resources")
+        .insert({ organization_id: prof.organization_id, ...res });
     }
     setSaving(false);
     setStep(2);

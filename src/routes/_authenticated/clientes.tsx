@@ -33,7 +33,10 @@ export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
     meta: [
       { title: "Clientes — Trivium AI" },
-      { name: "description", content: "CRM simple con canales de contacto e historial de consumo." },
+      {
+        name: "description",
+        content: "CRM simple con canales de contacto e historial de consumo.",
+      },
       { property: "og:title", content: "Clientes — Trivium AI" },
       { property: "og:description", content: "Gestioná tus clientes y su historial de consumo." },
     ],
@@ -120,7 +123,14 @@ function ClientesPage() {
       return;
     }
     setOpen(false);
-    setForm({ name: "", email: "", linkedin: "", whatsapp: "", segment: "Corporativo", consumption: "" });
+    setForm({
+      name: "",
+      email: "",
+      linkedin: "",
+      whatsapp: "",
+      segment: "Corporativo",
+      consumption: "",
+    });
     toast.success("Cliente agregado");
     void load();
   }

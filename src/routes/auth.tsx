@@ -172,9 +172,7 @@ function AuthPage() {
                       onChange={(e) => setForgotEmail(e.target.value)}
                       aria-invalid={!!forgotError}
                     />
-                    {forgotError && (
-                      <p className="text-xs text-destructive">{forgotError}</p>
-                    )}
+                    {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
                   </div>
                   <Button type="submit" className="w-full" disabled={forgotLoading}>
                     {forgotLoading ? "Enviando…" : "Enviar enlace"}
@@ -183,108 +181,118 @@ function AuthPage() {
               )}
             </div>
           ) : (
-          <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Iniciar sesión</TabsTrigger>
-              <TabsTrigger value="signup">Crear cuenta</TabsTrigger>
-            </TabsList>
+            <Tabs defaultValue="signin">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Iniciar sesión</TabsTrigger>
+                <TabsTrigger value="signup">Crear cuenta</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="signin">
-              <form className="mt-6 space-y-4" onSubmit={handleSignIn} noValidate>
-                <div className="space-y-2">
-                  <Label htmlFor="email-in">Email</Label>
-                  <Input
-                    id="email-in"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!errors["email"]}
-                  />
-                  {errors["email"] && <p className="text-xs text-destructive">{errors["email"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pass-in">Contraseña</Label>
-                  <Input
-                    id="pass-in"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!errors["password"]}
-                  />
-                  {errors["password"] && <p className="text-xs text-destructive">{errors["password"]}</p>}
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Ingresando..." : "Ingresar"}
-                </Button>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                    onClick={() => {
-                      setForgotOpen(true);
-                      setForgotEmail(email);
-                      setForgotError(null);
-                      setForgotSent(false);
-                    }}
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </button>
-                </div>
-              </form>
-            </TabsContent>
+              <TabsContent value="signin">
+                <form className="mt-6 space-y-4" onSubmit={handleSignIn} noValidate>
+                  <div className="space-y-2">
+                    <Label htmlFor="email-in">Email</Label>
+                    <Input
+                      id="email-in"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      aria-invalid={!!errors["email"]}
+                    />
+                    {errors["email"] && (
+                      <p className="text-xs text-destructive">{errors["email"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pass-in">Contraseña</Label>
+                    <Input
+                      id="pass-in"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-invalid={!!errors["password"]}
+                    />
+                    {errors["password"] && (
+                      <p className="text-xs text-destructive">{errors["password"]}</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Ingresando..." : "Ingresar"}
+                  </Button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      onClick={() => {
+                        setForgotOpen(true);
+                        setForgotEmail(email);
+                        setForgotError(null);
+                        setForgotSent(false);
+                      }}
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </div>
+                </form>
+              </TabsContent>
 
-            <TabsContent value="signup">
-              <form className="mt-6 space-y-4" onSubmit={handleSignUp} noValidate>
-                <div className="space-y-2">
-                  <Label htmlFor="name-up">Nombre y apellido</Label>
-                  <Input
-                    id="name-up"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    aria-invalid={!!errors["fullName"]}
-                  />
-                  {errors["fullName"] && <p className="text-xs text-destructive">{errors["fullName"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email-up">Email</Label>
-                  <Input
-                    id="email-up"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!errors["email"]}
-                  />
-                  {errors["email"] && <p className="text-xs text-destructive">{errors["email"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pass-up">Contraseña</Label>
-                  <Input
-                    id="pass-up"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!errors["password"]}
-                  />
-                  {errors["password"] && <p className="text-xs text-destructive">{errors["password"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role-up">Tipo de cuenta</Label>
-                  <Select value={role} onValueChange={(v) => setRole(v as "admin" | "cliente")}>
-                    <SelectTrigger id="role-up">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Administrador (todos los módulos)</SelectItem>
-                      <SelectItem value="cliente">Cliente final (sólo Co-creación)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creando cuenta..." : "Crear cuenta"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="signup">
+                <form className="mt-6 space-y-4" onSubmit={handleSignUp} noValidate>
+                  <div className="space-y-2">
+                    <Label htmlFor="name-up">Nombre y apellido</Label>
+                    <Input
+                      id="name-up"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      aria-invalid={!!errors["fullName"]}
+                    />
+                    {errors["fullName"] && (
+                      <p className="text-xs text-destructive">{errors["fullName"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email-up">Email</Label>
+                    <Input
+                      id="email-up"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      aria-invalid={!!errors["email"]}
+                    />
+                    {errors["email"] && (
+                      <p className="text-xs text-destructive">{errors["email"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pass-up">Contraseña</Label>
+                    <Input
+                      id="pass-up"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-invalid={!!errors["password"]}
+                    />
+                    {errors["password"] && (
+                      <p className="text-xs text-destructive">{errors["password"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role-up">Tipo de cuenta</Label>
+                    <Select value={role} onValueChange={(v) => setRole(v as "admin" | "cliente")}>
+                      <SelectTrigger id="role-up">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador (todos los módulos)</SelectItem>
+                        <SelectItem value="cliente">Cliente final (sólo Co-creación)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Creando cuenta..." : "Crear cuenta"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </div>
