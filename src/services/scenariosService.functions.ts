@@ -72,5 +72,11 @@ export const generateScenariosFn = createServerFn({ method: "POST" })
       throw new Error(`No se pudieron guardar los escenarios: ${scenariosError.message}`);
     }
 
-    return scenarios;
+    const { getQuoteWithFallback } = await import("@/lib/market");
+    const quotes = await Promise.all(data.assets.map((asset) => getQuoteWithFallback(asset)));
+    if (!quotes.some((quote) => quote.dataSource === "manual")) return scenarios;
+
+    return scenarios.map((scenario) =>
+      Object.assign({}, scenario, { dataSource: "manual" as const }),
+    );
   });

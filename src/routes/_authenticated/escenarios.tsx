@@ -64,6 +64,13 @@ export const Route = createFileRoute("/_authenticated/escenarios")({
 const uid = () => Math.random().toString(36).slice(2, 9);
 const riskScore: Record<RiskLevel, number> = { bajo: 33, medio: 66, alto: 100 };
 
+function usesManualMarket(scenarios: Scenario[]): boolean {
+  return scenarios.some((scenario) => {
+    const source = (scenario as Scenario & { dataSource?: string }).dataSource;
+    return source === "manual";
+  });
+}
+
 interface HistoryItem {
   id: string;
   name: string;
@@ -104,10 +111,16 @@ function EscenariosPage() {
     if (situation.trim().length < 10)
       next["situation"] = "Describí la situación actual (mínimo 10 caracteres)";
     if (!assets.some((a) => a.name.trim())) next["assets"] = "Cargá al menos un activo con nombre";
-    const totalWeight = assets.reduce((acc, a) => acc + Number(a.weight || 0), 0);
-    if (totalWeight > 100) next["assets"] = "La suma de los pesos no puede superar 100%";
+    else {
+      const totalWeight = assets.reduce((acc, a) => acc + Number(a.weight || 0), 0);
+      if (Math.abs(totalWeight - 100) > 0.01) {
+        next["assets"] = "Los pesos de la cartera deben sumar 100%";
+      }
+    }
     if (!variables.some((v) => v.name.trim()))
       next["variables"] = "Cargá al menos una variable independiente";
+    else if (variables.some((v) => v.probability < 0 || v.probability > 100))
+      next["variables"] = "La probabilidad debe estar entre 0 y 100";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -129,8 +142,7 @@ function EscenariosPage() {
       setScenarios(result);
       void loadHistory();
       toast.success("Escenarios generados");
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("No pudimos generar los escenarios. Probá de nuevo en unos minutos.");
     } finally {
       setGenerating(false);
@@ -456,6 +468,14 @@ function EscenariosPage() {
 
           {!generating && scenarios.length > 0 && (
             <>
+              {usesManualMarket(scenarios) && (
+                <p
+                  role="status"
+                  className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm"
+                >
+                  Datos de mercado con fuente manual: no se pudo obtener la cotización automática.
+                </p>
+              )}
               <div className="flex justify-end">
                 <Button variant="outline" onClick={exportPdf}>
                   <FileDown className="mr-2 size-4" /> Exportar a PDF
