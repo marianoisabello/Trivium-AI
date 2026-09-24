@@ -25,8 +25,12 @@ pnpm-lock.yaml
 .wrangler/
 .dev.vars
 
-# Variables de entorno con secretos (.env queda trackeado por decisión previa
-# del repo — no tocar su historial acá; todo secreto nuevo va en .env.local)
+# Variables de entorno con secretos. .env estuvo trackeado en el repo (commit
+# beb8fdc) y sigue en el historial de git — no lo reescribimos acá (decisión
+# explícita: invasivo, rompe cualquier otro clone). A partir de ahora se deja
+# de trackear hacia adelante (git rm --cached); todo secreto nuevo va en
+# .env.local.
+.env
 .env.local
 .env.*.local
 
