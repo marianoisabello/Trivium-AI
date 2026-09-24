@@ -8,7 +8,7 @@ function futureDate(daysAhead: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Iniciativas de sustentabilidad simuladas. Futuro: POST /api/sustainability */
+/** Iniciativas de sustentabilidad simuladas. Futuro (Fase 3, PLAN.md): getAIProvider() real. */
 export async function generateInitiatives(input: ResourcesInput): Promise<Initiative[]> {
   await delay(1400);
   const id = Date.now();
@@ -28,7 +28,13 @@ export async function generateInitiatives(input: ResourcesInput): Promise<Initia
       ],
       kpis: [
         { id: `k-${id}-1`, name: "Residuo reutilizado", unit: "%", target: 40, current: 8 },
-        { id: `k-${id}-2`, name: "Costo de disposición evitado", unit: "kUSD", target: 120, current: 15 },
+        {
+          id: `k-${id}-2`,
+          name: "Costo de disposición evitado",
+          unit: "kUSD",
+          target: 120,
+          current: 15,
+        },
         { id: `k-${id}-3`, name: "Proveedores circulares", unit: "un.", target: 6, current: 1 },
       ],
     },
@@ -47,7 +53,13 @@ export async function generateInitiatives(input: ResourcesInput): Promise<Initia
       kpis: [
         { id: `k-${id}-4`, name: "Personas formadas", unit: "un.", target: 150, current: 0 },
         { id: `k-${id}-5`, name: "Inserción laboral", unit: "%", target: 60, current: 0 },
-        { id: `k-${id}-6`, name: "Horas de voluntariado del equipo", unit: "h", target: 800, current: 60 },
+        {
+          id: `k-${id}-6`,
+          name: "Horas de voluntariado del equipo",
+          unit: "h",
+          target: 800,
+          current: 60,
+        },
       ],
     },
     {
@@ -63,7 +75,13 @@ export async function generateInitiatives(input: ResourcesInput): Promise<Initia
       ],
       kpis: [
         { id: `k-${id}-7`, name: "Hectáreas restauradas", unit: "ha", target: 5, current: 0.5 },
-        { id: `k-${id}-8`, name: "Especies nativas plantadas", unit: "un.", target: 3000, current: 250 },
+        {
+          id: `k-${id}-8`,
+          name: "Especies nativas plantadas",
+          unit: "un.",
+          target: 3000,
+          current: 250,
+        },
         { id: `k-${id}-9`, name: "Índice de biodiversidad", unit: "pts", target: 75, current: 41 },
         { id: `k-${id}-10`, name: "Consumo de agua por ha", unit: "m³", target: 120, current: 190 },
       ],

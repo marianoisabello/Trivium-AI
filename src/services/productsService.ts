@@ -2,7 +2,7 @@ import type { Channel, CoCreationInput, ProductSuggestion, Proposal } from "@/li
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Propuestas automáticas simuladas. Futuro: GET /api/proposals */
+/** Propuestas automáticas simuladas. Futuro (Fase 2, PLAN.md): getAIProvider() real. */
 export async function generateProposals(segment: string, count = 4): Promise<Proposal[]> {
   await delay(1200);
   const base: Omit<Proposal, "id">[] = [
@@ -42,7 +42,7 @@ export async function generateProposals(segment: string, count = 4): Promise<Pro
   return base.slice(0, count).map((p, i) => ({ ...p, id: `prop-${Date.now()}-${i}` }));
 }
 
-/** Recomendaciones de co-creación. Futuro: POST /api/cocreation */
+/** Recomendaciones de co-creación. Futuro (Fase 2, PLAN.md): getAIProvider() real. */
 export async function generateRecommendations(
   input: CoCreationInput,
 ): Promise<ProductSuggestion[]> {
