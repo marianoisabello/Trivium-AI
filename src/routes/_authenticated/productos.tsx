@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Sparkles, Check, Pause, Pencil, Eye } from "lucide-react";
+import { Sparkles, Check, Pause, Pencil, Eye, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -71,7 +71,7 @@ const HISTORY_CHIPS = [
 ];
 
 function ProductosPage() {
-  const { organization, role } = useAuth();
+  const { organization, role, user } = useAuth();
   const isCliente = role === "cliente";
 
   return (
@@ -92,7 +92,7 @@ function ProductosPage() {
             <TabsTrigger value="co">Co-creación</TabsTrigger>
           </TabsList>
           <TabsContent value="auto" className="mt-6">
-            <PropuestasAutomaticas orgId={organization?.id ?? null} />
+            <PropuestasAutomaticas orgId={organization?.id ?? null} userId={user?.id ?? null} />
           </TabsContent>
           <TabsContent value="co" className="mt-6">
             <CoCreacion />
@@ -103,7 +103,7 @@ function ProductosPage() {
   );
 }
 
-function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
+function PropuestasAutomaticas({ orgId, userId }: { orgId: string | null; userId: string | null }) {
   const [rows, setRows] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -113,6 +113,8 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
   const [preview, setPreview] = useState<{ proposal: Proposal; channel: Channel } | null>(null);
   const [template, setTemplate] = useState("");
   const [editing, setEditing] = useState<Proposal | null>(null);
+  const [rejecting, setRejecting] = useState<Proposal | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     void load();
@@ -154,6 +156,36 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
     setRows(rows.map((r) => (r.id === p.id ? { ...r, status } : r)));
     if (orgId) await supabase.from("proposals").update({ status }).eq("id", p.id);
     toast.success(`Propuesta ${status}`);
+  }
+
+  /** Fase 4: aprobar además queda registrado en proposal_feedback (alimenta el prompt de próximas generaciones). */
+  async function handleApprove(p: Proposal) {
+    await updateStatus(p, "programada");
+    if (orgId) {
+      await supabase.from("proposal_feedback").insert({
+        organization_id: orgId,
+        proposal_id: p.id,
+        user_id: userId,
+        decision: "aprobado",
+      });
+    }
+  }
+
+  async function submitReject() {
+    if (!rejecting) return;
+    const reason = rejectReason.trim();
+    await updateStatus(rejecting, "pausada");
+    if (orgId) {
+      await supabase.from("proposal_feedback").insert({
+        organization_id: orgId,
+        proposal_id: rejecting.id,
+        user_id: userId,
+        decision: "rechazado",
+        reason: reason || null,
+      });
+    }
+    setRejecting(null);
+    setRejectReason("");
   }
 
   async function saveEdit() {
@@ -294,9 +326,17 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
                             size="icon"
                             variant="ghost"
                             aria-label="Aprobar"
-                            onClick={() => updateStatus(p, "programada")}
+                            onClick={() => void handleApprove(p)}
                           >
                             <Check className="size-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Rechazar"
+                            onClick={() => setRejecting(p)}
+                          >
+                            <X className="size-4" />
                           </Button>
                           <Button
                             size="icon"
@@ -432,6 +472,35 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
               Cancelar
             </Button>
             <Button onClick={saveEdit}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar propuesta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">Motivo (opcional)</Label>
+            <Textarea
+              id="reject-reason"
+              rows={3}
+              placeholder="Ej: canal poco usado por este segmento"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              El motivo ayuda a que las próximas propuestas generadas se ajusten mejor.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejecting(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={() => void submitReject()}>
+              Rechazar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

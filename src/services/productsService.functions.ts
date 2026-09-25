@@ -7,8 +7,10 @@ import {
   recommendationsDraftResponseSchema,
 } from "@/lib/schemas";
 import { resolveOrganizationId } from "@/lib/server/organization";
+import { checkRateLimit, withAiCallLogging } from "@/lib/server/aiCallLog";
+import { summarizeProposalFeedback } from "@/lib/server/feedbackContext";
 import type { CoCreationInput, ProductSuggestion, Proposal } from "@/lib/types";
-import type { ProposalsGenerateInput } from "@/lib/ai/types";
+import type { ProposalDraft, ProposalsGenerateInput } from "@/lib/ai/types";
 
 /**
  * Genera propuestas automáticas y las persiste en `proposals`. A diferencia
@@ -22,12 +24,34 @@ export const generateProposalsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown): ProposalsGenerateInput => proposalsGenerateInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<Proposal[]> => {
-    const { getAIProvider } = await import("@/lib/ai/provider");
-    const drafts = proposalsDraftResponseSchema.parse(
-      await getAIProvider().generateProposals(data),
-    );
-
     const organizationId = await resolveOrganizationId(context.supabase, context.userId);
+
+    await checkRateLimit(context.supabase, organizationId);
+
+    const { data: feedbackRows } = await context.supabase
+      .from("proposal_feedback")
+      .select("decision, reason")
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    const feedbackContext = summarizeProposalFeedback(feedbackRows ?? []);
+
+    const { getAIProvider } = await import("@/lib/ai/provider");
+    const provider = process.env["AI_PROVIDER"] ?? "vertex";
+    const drafts = await withAiCallLogging<ProposalDraft[]>(
+      context.supabase,
+      {
+        organizationId,
+        userId: context.userId,
+        flow: "proposals",
+        provider,
+        model: provider === "vertex" ? (process.env["VERTEX_AI_MODEL"] ?? null) : null,
+      },
+      async () =>
+        proposalsDraftResponseSchema.parse(
+          await getAIProvider().generateProposals(data, feedbackContext),
+        ),
+    );
 
     const { data: inserted, error } = await context.supabase
       .from("proposals")
@@ -68,10 +92,26 @@ export const generateProposalsFn = createServerFn({ method: "POST" })
 export const generateRecommendationsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown): CoCreationInput => coCreationInputSchema.parse(input))
-  .handler(async ({ data }): Promise<ProductSuggestion[]> => {
+  .handler(async ({ data, context }): Promise<ProductSuggestion[]> => {
+    const organizationId = await resolveOrganizationId(context.supabase, context.userId);
+
+    await checkRateLimit(context.supabase, organizationId);
+
     const { getAIProvider } = await import("@/lib/ai/provider");
-    const drafts = recommendationsDraftResponseSchema.parse(
-      await getAIProvider().generateRecommendations(data),
+    const provider = process.env["AI_PROVIDER"] ?? "vertex";
+    const drafts = await withAiCallLogging(
+      context.supabase,
+      {
+        organizationId,
+        userId: context.userId,
+        flow: "recommendations",
+        provider,
+        model: provider === "vertex" ? (process.env["VERTEX_AI_MODEL"] ?? null) : null,
+      },
+      async () =>
+        recommendationsDraftResponseSchema.parse(
+          await getAIProvider().generateRecommendations(data),
+        ),
     );
 
     return drafts.map((s) => ({ id: crypto.randomUUID(), ...s }));

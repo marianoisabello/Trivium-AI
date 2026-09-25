@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { initiativesDraftResponseSchema, resourcesInputSchema } from "@/lib/schemas";
 import { resolveOrganizationId } from "@/lib/server/organization";
+import { checkRateLimit, withAiCallLogging } from "@/lib/server/aiCallLog";
 import type { Initiative, PlanStep, ResourcesInput } from "@/lib/types";
+import type { InitiativeDraft } from "@/lib/ai/types";
 
 /**
  * Genera iniciativas de sustentabilidad y las persiste en `initiatives` +
@@ -14,12 +16,24 @@ export const generateInitiativesFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown): ResourcesInput => resourcesInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<Initiative[]> => {
-    const { getAIProvider } = await import("@/lib/ai/provider");
-    const drafts = initiativesDraftResponseSchema.parse(
-      await getAIProvider().generateInitiatives(data),
-    );
-
     const organizationId = await resolveOrganizationId(context.supabase, context.userId);
+
+    await checkRateLimit(context.supabase, organizationId);
+
+    const { getAIProvider } = await import("@/lib/ai/provider");
+    const provider = process.env["AI_PROVIDER"] ?? "vertex";
+    const drafts = await withAiCallLogging<InitiativeDraft[]>(
+      context.supabase,
+      {
+        organizationId,
+        userId: context.userId,
+        flow: "initiatives",
+        provider,
+        model: provider === "vertex" ? (process.env["VERTEX_AI_MODEL"] ?? null) : null,
+      },
+      async () =>
+        initiativesDraftResponseSchema.parse(await getAIProvider().generateInitiatives(data)),
+    );
 
     const initiatives: Initiative[] = [];
     for (const draft of drafts) {

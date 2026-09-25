@@ -2,6 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { analysisInputSchema, scenariosResponseSchema } from "@/lib/schemas";
 import type { AnalysisInput, Scenario } from "@/lib/types";
+import { resolveOrganizationId } from "@/lib/server/organization";
+import { checkRateLimit, withAiCallLogging } from "@/lib/server/aiCallLog";
+import { summarizeScenarioFeedback } from "@/lib/server/feedbackContext";
 
 /**
  * Server function que reemplaza conceptualmente a "/api/scenarios/generate":
@@ -14,28 +17,40 @@ export const generateScenariosFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown): AnalysisInput => analysisInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<Scenario[]> => {
+    // Cliente con el JWT del usuario (de requireSupabaseAuth): las políticas
+    // RLS ya exigen organization_id = current_org_id(), así que no hace
+    // falta el service role para esta operación (queda para admin real).
+    const organizationId = await resolveOrganizationId(context.supabase, context.userId);
+
+    await checkRateLimit(context.supabase, organizationId);
+
+    const { data: feedbackRows } = await context.supabase
+      .from("scenario_feedback")
+      .select("scenario_type, decision, reason")
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    const feedbackContext = summarizeScenarioFeedback(feedbackRows ?? []);
+
     // Import dinámico: lib/ai/provider.ts arrastra el adapter de Vertex AI
     // (google-auth-library, dependencias de Node) que no debe terminar en
     // el bundle de cliente — mismo patrón que client.server.ts.
     const { getAIProvider } = await import("@/lib/ai/provider");
-    const scenarios = scenariosResponseSchema.parse(await getAIProvider().generateScenarios(data));
-
-    // Cliente con el JWT del usuario (de requireSupabaseAuth): las políticas
-    // RLS ya exigen organization_id = current_org_id(), así que no hace
-    // falta el service role para esta operación (queda para admin real).
-    const { data: profile, error: profileError } = await context.supabase
-      .from("profiles")
-      .select("organization_id")
-      .eq("id", context.userId)
-      .maybeSingle();
-
-    if (profileError) {
-      throw new Error(`No se pudo resolver el perfil del usuario: ${profileError.message}`);
-    }
-    if (!profile?.organization_id) {
-      throw new Error("El usuario no tiene una organización asignada");
-    }
-    const organizationId = profile.organization_id;
+    const provider = process.env["AI_PROVIDER"] ?? "vertex";
+    const scenarios = await withAiCallLogging<Scenario[]>(
+      context.supabase,
+      {
+        organizationId,
+        userId: context.userId,
+        flow: "scenarios",
+        provider,
+        model: provider === "vertex" ? (process.env["VERTEX_AI_MODEL"] ?? null) : null,
+      },
+      async () =>
+        scenariosResponseSchema.parse(
+          await getAIProvider().generateScenarios(data, feedbackContext),
+        ),
+    );
 
     const { data: analysis, error: analysisError } = await context.supabase
       .from("analyses")

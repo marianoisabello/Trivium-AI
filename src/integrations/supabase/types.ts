@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      // NOTA: bloque agregado a mano (Claude Code, Fase 4) porque este
+      // entorno no tiene el proyecto de Supabase linkeado para regenerar
+      // este archivo con la CLI. Refleja supabase/migrations/20260924190000_
+      // feedback_and_ai_observability.sql. Cuando se aplique esa migración y
+      // se regenere types.ts de verdad, este comentario y el shape de abajo
+      // deberían coincidir (o reemplazarse) con lo que genere la CLI.
+      ai_call_logs: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          duration_ms: number
+          error_message: string | null
+          flow: string
+          id: string
+          model: string | null
+          organization_id: string
+          provider: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          duration_ms?: number
+          error_message?: string | null
+          flow: string
+          id?: string
+          model?: string | null
+          organization_id: string
+          provider: string
+          status: string
+          user_id?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          duration_ms?: number
+          error_message?: string | null
+          flow?: string
+          id?: string
+          model?: string | null
+          organization_id?: string
+          provider?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_call_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analyses: {
         Row: {
           assets: Json
@@ -333,6 +389,51 @@ export type Database = {
           },
         ]
       }
+      proposal_feedback: {
+        Row: {
+          created_at: string
+          decision: string
+          id: string
+          organization_id: string
+          proposal_id: string
+          reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          id?: string
+          organization_id: string
+          proposal_id: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          id?: string
+          organization_id?: string
+          proposal_id?: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_feedback_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_feedback_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposals: {
         Row: {
           channel: string
@@ -383,6 +484,54 @@ export type Database = {
           },
           {
             foreignKeyName: "proposals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scenario_feedback: {
+        Row: {
+          analysis_id: string | null
+          created_at: string
+          decision: string
+          id: string
+          organization_id: string
+          reason: string | null
+          scenario_type: string
+          user_id: string | null
+        }
+        Insert: {
+          analysis_id?: string | null
+          created_at?: string
+          decision: string
+          id?: string
+          organization_id: string
+          reason?: string | null
+          scenario_type: string
+          user_id?: string | null
+        }
+        Update: {
+          analysis_id?: string | null
+          created_at?: string
+          decision?: string
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          scenario_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_feedback_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scenario_feedback_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
