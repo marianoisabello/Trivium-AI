@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { saveProfileFn } from "@/services/authService.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -39,15 +39,9 @@ function ConfigPage() {
 
   async function save() {
     setSaving(true);
-    if (organization) {
-      await supabase
-        .from("organizations")
-        .update({ name: orgName.trim(), industry, size })
-        .eq("id", organization.id);
-    }
-    if (user) {
-      await supabase.from("profiles").update({ full_name: name.trim() }).eq("id", user.uid);
-    }
+    await saveProfileFn({
+      data: { fullName: name.trim(), orgName: orgName.trim(), industry, size },
+    });
     await refresh();
     setSaving(false);
     toast.success("Cambios guardados");

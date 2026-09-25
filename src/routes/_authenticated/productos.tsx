@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Sparkles, Check, Pause, Pencil, Eye, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -40,6 +39,14 @@ import {
   generateProposals,
   generateRecommendations,
 } from "@/services/productsService";
+import {
+  approveProposalFn,
+  listProposalsFn,
+  rejectProposalFn,
+  updateProposalFn,
+  updateProposalStatusFn,
+  updateProposalTemplateFn,
+} from "@/services/productsService.functions";
 import type { Cadence, Channel, ProductSuggestion, Proposal } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/productos")({
@@ -71,7 +78,7 @@ const HISTORY_CHIPS = [
 ];
 
 function ProductosPage() {
-  const { organization, role, user } = useAuth();
+  const { organization, role } = useAuth();
   const isCliente = role === "cliente";
 
   return (
@@ -92,7 +99,7 @@ function ProductosPage() {
             <TabsTrigger value="co">Co-creación</TabsTrigger>
           </TabsList>
           <TabsContent value="auto" className="mt-6">
-            <PropuestasAutomaticas orgId={organization?.id ?? null} userId={user?.uid ?? null} />
+            <PropuestasAutomaticas orgId={organization?.id ?? null} />
           </TabsContent>
           <TabsContent value="co" className="mt-6">
             <CoCreacion />
@@ -103,7 +110,7 @@ function ProductosPage() {
   );
 }
 
-function PropuestasAutomaticas({ orgId, userId }: { orgId: string | null; userId: string | null }) {
+function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
   const [rows, setRows] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -117,26 +124,16 @@ function PropuestasAutomaticas({ orgId, userId }: { orgId: string | null; userId
   const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
-    void load();
-  }, []);
+    if (orgId) {
+      void load();
+    } else {
+      setLoading(false);
+    }
+  }, [orgId]);
 
   async function load() {
-    const { data } = await supabase
-      .from("proposals")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setRows(
-      (data ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description ?? "",
-        targetClient: p.target_client ?? "",
-        channel: p.channel as Channel,
-        schedule: p.schedule as Cadence,
-        status: p.status as Proposal["status"],
-        ...(p.template ? { template: p.template } : {}),
-      })),
-    );
+    const data = await listProposalsFn();
+    setRows(data);
     setLoading(false);
   }
 
@@ -154,36 +151,23 @@ function PropuestasAutomaticas({ orgId, userId }: { orgId: string | null; userId
 
   async function updateStatus(p: Proposal, status: Proposal["status"]) {
     setRows(rows.map((r) => (r.id === p.id ? { ...r, status } : r)));
-    if (orgId) await supabase.from("proposals").update({ status }).eq("id", p.id);
+    if (orgId) await updateProposalStatusFn({ data: { proposalId: p.id, status } });
     toast.success(`Propuesta ${status}`);
   }
 
-  /** Fase 4: aprobar además queda registrado en proposal_feedback (alimenta el prompt de próximas generaciones). */
+  /** Aprobar además queda registrado en proposal_feedback (alimenta el prompt de próximas generaciones). */
   async function handleApprove(p: Proposal) {
-    await updateStatus(p, "programada");
-    if (orgId) {
-      await supabase.from("proposal_feedback").insert({
-        organization_id: orgId,
-        proposal_id: p.id,
-        user_id: userId,
-        decision: "aprobado",
-      });
-    }
+    setRows(rows.map((r) => (r.id === p.id ? { ...r, status: "programada" } : r)));
+    if (orgId) await approveProposalFn({ data: { proposalId: p.id } });
+    toast.success("Propuesta programada");
   }
 
   async function submitReject() {
     if (!rejecting) return;
     const reason = rejectReason.trim();
-    await updateStatus(rejecting, "pausada");
-    if (orgId) {
-      await supabase.from("proposal_feedback").insert({
-        organization_id: orgId,
-        proposal_id: rejecting.id,
-        user_id: userId,
-        decision: "rechazado",
-        reason: reason || null,
-      });
-    }
+    setRows(rows.map((r) => (r.id === rejecting.id ? { ...r, status: "pausada" } : r)));
+    if (orgId) await rejectProposalFn({ data: { proposalId: rejecting.id, reason } });
+    toast.success("Propuesta pausada");
     setRejecting(null);
     setRejectReason("");
   }
@@ -192,15 +176,15 @@ function PropuestasAutomaticas({ orgId, userId }: { orgId: string | null; userId
     if (!editing) return;
     setRows(rows.map((r) => (r.id === editing.id ? editing : r)));
     if (orgId)
-      await supabase
-        .from("proposals")
-        .update({
+      await updateProposalFn({
+        data: {
+          proposalId: editing.id,
           name: editing.name,
           description: editing.description,
           channel: editing.channel,
           schedule: editing.schedule,
-        })
-        .eq("id", editing.id);
+        },
+      });
     setEditing(null);
     toast.success("Propuesta actualizada");
   }
@@ -208,7 +192,8 @@ function PropuestasAutomaticas({ orgId, userId }: { orgId: string | null; userId
   async function saveTemplate() {
     if (!preview) return;
     setRows(rows.map((r) => (r.id === preview.proposal.id ? { ...r, template } : r)));
-    if (orgId) await supabase.from("proposals").update({ template }).eq("id", preview.proposal.id);
+    if (orgId)
+      await updateProposalTemplateFn({ data: { proposalId: preview.proposal.id, template } });
     setPreview(null);
     toast.success("Plantilla guardada");
   }

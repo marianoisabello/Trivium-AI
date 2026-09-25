@@ -9,6 +9,7 @@ export interface ProposalRow {
   schedule: string;
   status: string;
   template: string | null;
+  createdAt: Date;
 }
 
 export interface ProposalDraftInput {

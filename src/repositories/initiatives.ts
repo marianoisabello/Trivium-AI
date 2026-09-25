@@ -8,6 +8,7 @@ export interface InitiativeRow {
   goal: string | null;
   plan: unknown;
   status: string;
+  createdAt: Date;
 }
 
 export interface InitiativeDraftInput {

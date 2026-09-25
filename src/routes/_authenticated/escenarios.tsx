@@ -13,7 +13,6 @@ import {
   YAxis,
 } from "recharts";
 import jsPDF from "jspdf";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -47,6 +46,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { generateScenarios } from "@/services/scenariosService";
+import {
+  createScenarioFeedbackFn,
+  listAnalysisHistoryFn,
+} from "@/services/scenariosService.functions";
 import type { Asset, AssetType, Impact, KeyVariable, RiskLevel, Scenario } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -87,7 +90,7 @@ interface HistoryItem {
 }
 
 function EscenariosPage() {
-  const { organization, user } = useAuth();
+  const { organization } = useAuth();
   const [name, setName] = useState("");
   const [situation, setSituation] = useState("");
   const [assets, setAssets] = useState<Asset[]>([
@@ -107,16 +110,14 @@ function EscenariosPage() {
   const [scenarioRejectReason, setScenarioRejectReason] = useState("");
 
   useEffect(() => {
-    void loadHistory();
-  }, []);
+    if (organization) {
+      void loadHistory();
+    }
+  }, [organization]);
 
   async function loadHistory() {
-    const { data } = await supabase
-      .from("analyses")
-      .select("id, name, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    setHistory((data as HistoryItem[]) ?? []);
+    const data = await listAnalysisHistoryFn();
+    setHistory(data);
   }
 
   function validate() {
@@ -164,21 +165,16 @@ function EscenariosPage() {
     }
   }
 
-  /** Fase 4: feedback por tipo de escenario, alimenta el prompt de próximas generaciones (scenario_feedback). */
+  /** Feedback por tipo de escenario, alimenta el prompt de próximas generaciones (scenario_feedback). */
   async function submitScenarioFeedback(
     s: Scenario,
     decision: "aprobado" | "rechazado",
     reason?: string,
   ) {
     if (!organization) return;
-    const { error } = await supabase.from("scenario_feedback").insert({
-      organization_id: organization.id,
-      scenario_type: s.type,
-      user_id: user?.uid ?? null,
-      decision,
-      reason: reason || null,
-    });
-    if (error) {
+    try {
+      await createScenarioFeedbackFn({ data: { scenarioType: s.type, decision, reason } });
+    } catch {
       toast.error("No se pudo registrar el feedback");
       return;
     }

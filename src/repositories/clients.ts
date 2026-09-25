@@ -8,7 +8,7 @@ export interface ClientRow {
   linkedin: string | null;
   whatsapp: string | null;
   segment: string | null;
-  consumption: unknown;
+  consumption: string[];
 }
 
 export async function createClient(
@@ -19,7 +19,7 @@ export async function createClient(
     linkedin: string | null;
     whatsapp: string | null;
     segment: string | null;
-    consumption: unknown;
+    consumption: string[];
   },
 ): Promise<void> {
   await prisma.client.create({
@@ -28,7 +28,7 @@ export async function createClient(
 }
 
 export async function listClients(organizationId: string): Promise<ClientRow[]> {
-  return prisma.client.findMany({
+  const rows = await prisma.client.findMany({
     where: { organizationId },
     orderBy: { createdAt: "desc" },
     select: {
@@ -41,4 +41,8 @@ export async function listClients(organizationId: string): Promise<ClientRow[]> 
       consumption: true,
     },
   });
+  return rows.map((r) => ({
+    ...r,
+    consumption: Array.isArray(r.consumption) ? (r.consumption as string[]) : [],
+  }));
 }

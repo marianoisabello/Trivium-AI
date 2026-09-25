@@ -2,11 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth, requireOrganization } from "@/lib/auth/verifyToken";
 import { getFirebaseAdminAuth } from "@/lib/firebase/admin";
-import { assignOrganization, ensureProfile, getProfile, getRole } from "@/repositories/profiles";
+import {
+  assignOrganization,
+  ensureProfile,
+  getProfile,
+  getRole,
+  updateFullName,
+} from "@/repositories/profiles";
 import {
   createOrganization,
   getOrganizationById,
   markOnboardingCompleted,
+  updateOrganization,
 } from "@/repositories/organizations";
 import { saveOrgResources } from "@/repositories/orgResources";
 
@@ -103,4 +110,26 @@ export const completeOnboardingFn = createServerFn({ method: "POST" })
   .middleware([requireOrganization])
   .handler(async ({ context }) => {
     await markOnboardingCompleted(context.organizationId);
+  });
+
+const saveProfileInputSchema = z.object({
+  fullName: z.string().min(1),
+  orgName: z.string().min(2),
+  industry: z.string(),
+  size: z.string(),
+});
+
+/** Reemplaza el guardado directo en configuracion.tsx (update de organizations + profiles). */
+export const saveProfileFn = createServerFn({ method: "POST" })
+  .middleware([requireOrganization])
+  .validator((input: unknown) => saveProfileInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await Promise.all([
+      updateOrganization(context.organizationId, {
+        name: data.orgName,
+        industry: data.industry || null,
+        size: data.size || null,
+      }),
+      updateFullName(context.firebaseUid, data.fullName),
+    ]);
   });
