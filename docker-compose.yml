@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trivium
+      POSTGRES_PASSWORD: trivium
+      POSTGRES_DB: trivium
+    ports:
+      # 5433 en el host: el 5432 default ya está en uso por otro Postgres local.
+      - "5433:5432"
+    volumes:
+      - trivium_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trivium -d trivium"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  trivium_postgres_data:

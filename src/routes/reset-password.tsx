@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { confirmPasswordReset, signOut, verifyPasswordResetCode } from "firebase/auth";
 import { Sparkles } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,18 +37,26 @@ function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [oobCode, setOobCode] = useState<string | null>(null);
 
   useEffect(() => {
-    // La recuperación llega con un hash tipo #type=recovery&access_token=...
-    const hash = window.location.hash.replace(/^#/, "");
-    const params = new URLSearchParams(hash);
-    const type = params.get("type");
-    if (type !== "recovery") {
-      // Si no hay sesión de recuperación, redirigir al login
+    // Firebase manda el link con ?mode=resetPassword&oobCode=... (query, no hash).
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const code = params.get("oobCode");
+    if (mode !== "resetPassword" || !code) {
       navigate({ to: "/auth", replace: true });
       return;
     }
-    setReady(true);
+    verifyPasswordResetCode(getFirebaseAuth(), code)
+      .then(() => {
+        setOobCode(code);
+        setReady(true);
+      })
+      .catch(() => {
+        toast.error("El enlace no es válido o ya expiró");
+        navigate({ to: "/auth", replace: true });
+      });
   }, [navigate]);
 
   async function handleSubmit(ev: React.FormEvent) {
@@ -62,19 +71,22 @@ function ResetPasswordPage() {
       setError("Las contraseñas no coinciden");
       return;
     }
+    if (!oobCode) return;
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-    if (updateError) {
+    try {
+      await confirmPasswordReset(getFirebaseAuth(), oobCode, password);
+    } catch (updateError) {
+      setLoading(false);
       toast.error("No pudimos actualizar la contraseña", {
-        description: updateError.message,
+        description: (updateError as Error).message,
       });
       return;
     }
+    setLoading(false);
     toast.success("Contraseña actualizada", {
       description: "Iniciá sesión con tu nueva contraseña.",
     });
-    await supabase.auth.signOut();
+    await signOut(getFirebaseAuth());
     navigate({ to: "/auth", replace: true });
   }
 

@@ -1,9 +1,17 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import {
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
 import { Sparkles } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+import { bootstrapFn } from "@/services/authService.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,9 +55,10 @@ function AuthPage() {
   const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
+      if (user) navigate({ to: "/dashboard", replace: true });
     });
+    return unsubscribe;
   }, [navigate]);
 
   function validate(withName: boolean) {
@@ -67,12 +76,15 @@ function AuthPage() {
     ev.preventDefault();
     if (!validate(false)) return;
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
-    if (error) {
-      toast.error("No pudimos iniciar sesión", { description: error.message });
+    try {
+      await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+      await bootstrapFn({ data: { fullName: null, role: "admin" } });
+    } catch (error) {
+      setLoading(false);
+      toast.error("No pudimos iniciar sesión", { description: (error as Error).message });
       return;
     }
+    setLoading(false);
     toast.success("¡Bienvenido de nuevo!");
     navigate({ to: "/dashboard", replace: true });
   }
@@ -81,26 +93,21 @@ function AuthPage() {
     ev.preventDefault();
     if (!validate(true)) return;
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: fullName.trim(), role },
-      },
-    });
-    setLoading(false);
-    if (error) {
-      toast.error("No pudimos crear la cuenta", { description: error.message });
+    try {
+      const credential = await createUserWithEmailAndPassword(
+        getFirebaseAuth(),
+        email.trim(),
+        password,
+      );
+      await updateProfile(credential.user, { displayName: fullName.trim() });
+      await bootstrapFn({ data: { fullName: fullName.trim(), role } });
+    } catch (error) {
+      setLoading(false);
+      toast.error("No pudimos crear la cuenta", { description: (error as Error).message });
       return;
     }
-    if (data.session) {
-      navigate({ to: "/onboarding", replace: true });
-    } else {
-      toast.success("Revisá tu email", {
-        description: "Te enviamos un enlace para confirmar tu cuenta.",
-      });
-    }
+    setLoading(false);
+    navigate({ to: "/onboarding", replace: true });
   }
 
   async function handleForgotPassword(ev: React.FormEvent) {
@@ -112,14 +119,16 @@ function AuthPage() {
       return;
     }
     setForgotLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setForgotLoading(false);
-    if (error) {
-      toast.error("No pudimos enviar el email", { description: error.message });
+    try {
+      await sendPasswordResetEmail(getFirebaseAuth(), forgotEmail.trim(), {
+        url: `${window.location.origin}/reset-password`,
+      });
+    } catch (error) {
+      setForgotLoading(false);
+      toast.error("No pudimos enviar el email", { description: (error as Error).message });
       return;
     }
+    setForgotLoading(false);
     setForgotSent(true);
     toast.success("Revisá tu email", {
       description: "Te enviamos un enlace para restablecer tu contraseña.",

@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Sparkles, Check, Pause, Pencil, Eye } from "lucide-react";
+import { Sparkles, Check, Pause, Pencil, Eye, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -40,6 +39,14 @@ import {
   generateProposals,
   generateRecommendations,
 } from "@/services/productsService";
+import {
+  approveProposalFn,
+  listProposalsFn,
+  rejectProposalFn,
+  updateProposalFn,
+  updateProposalStatusFn,
+  updateProposalTemplateFn,
+} from "@/services/productsService.functions";
 import type { Cadence, Channel, ProductSuggestion, Proposal } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/productos")({
@@ -113,28 +120,20 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
   const [preview, setPreview] = useState<{ proposal: Proposal; channel: Channel } | null>(null);
   const [template, setTemplate] = useState("");
   const [editing, setEditing] = useState<Proposal | null>(null);
+  const [rejecting, setRejecting] = useState<Proposal | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
-    void load();
-  }, []);
+    if (orgId) {
+      void load();
+    } else {
+      setLoading(false);
+    }
+  }, [orgId]);
 
   async function load() {
-    const { data } = await supabase
-      .from("proposals")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setRows(
-      (data ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description ?? "",
-        targetClient: p.target_client ?? "",
-        channel: p.channel as Channel,
-        schedule: p.schedule as Cadence,
-        status: p.status as Proposal["status"],
-        ...(p.template ? { template: p.template } : {}),
-      })),
-    );
+    const data = await listProposalsFn();
+    setRows(data);
     setLoading(false);
   }
 
@@ -152,23 +151,40 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
 
   async function updateStatus(p: Proposal, status: Proposal["status"]) {
     setRows(rows.map((r) => (r.id === p.id ? { ...r, status } : r)));
-    if (orgId) await supabase.from("proposals").update({ status }).eq("id", p.id);
+    if (orgId) await updateProposalStatusFn({ data: { proposalId: p.id, status } });
     toast.success(`Propuesta ${status}`);
+  }
+
+  /** Aprobar además queda registrado en proposal_feedback (alimenta el prompt de próximas generaciones). */
+  async function handleApprove(p: Proposal) {
+    setRows(rows.map((r) => (r.id === p.id ? { ...r, status: "programada" } : r)));
+    if (orgId) await approveProposalFn({ data: { proposalId: p.id } });
+    toast.success("Propuesta programada");
+  }
+
+  async function submitReject() {
+    if (!rejecting) return;
+    const reason = rejectReason.trim();
+    setRows(rows.map((r) => (r.id === rejecting.id ? { ...r, status: "pausada" } : r)));
+    if (orgId) await rejectProposalFn({ data: { proposalId: rejecting.id, reason } });
+    toast.success("Propuesta pausada");
+    setRejecting(null);
+    setRejectReason("");
   }
 
   async function saveEdit() {
     if (!editing) return;
     setRows(rows.map((r) => (r.id === editing.id ? editing : r)));
     if (orgId)
-      await supabase
-        .from("proposals")
-        .update({
+      await updateProposalFn({
+        data: {
+          proposalId: editing.id,
           name: editing.name,
           description: editing.description,
           channel: editing.channel,
           schedule: editing.schedule,
-        })
-        .eq("id", editing.id);
+        },
+      });
     setEditing(null);
     toast.success("Propuesta actualizada");
   }
@@ -176,7 +192,8 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
   async function saveTemplate() {
     if (!preview) return;
     setRows(rows.map((r) => (r.id === preview.proposal.id ? { ...r, template } : r)));
-    if (orgId) await supabase.from("proposals").update({ template }).eq("id", preview.proposal.id);
+    if (orgId)
+      await updateProposalTemplateFn({ data: { proposalId: preview.proposal.id, template } });
     setPreview(null);
     toast.success("Plantilla guardada");
   }
@@ -294,9 +311,17 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
                             size="icon"
                             variant="ghost"
                             aria-label="Aprobar"
-                            onClick={() => updateStatus(p, "programada")}
+                            onClick={() => void handleApprove(p)}
                           >
                             <Check className="size-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Rechazar"
+                            onClick={() => setRejecting(p)}
+                          >
+                            <X className="size-4" />
                           </Button>
                           <Button
                             size="icon"
@@ -432,6 +457,35 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
               Cancelar
             </Button>
             <Button onClick={saveEdit}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar propuesta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">Motivo (opcional)</Label>
+            <Textarea
+              id="reject-reason"
+              rows={3}
+              placeholder="Ej: canal poco usado por este segmento"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              El motivo ayuda a que las próximas propuestas generadas se ajusten mejor.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejecting(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={() => void submitReject()}>
+              Rechazar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

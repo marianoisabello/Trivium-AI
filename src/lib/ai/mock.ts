@@ -28,7 +28,7 @@ function futureDate(daysAhead: number): string {
  * comportamiento anterior a Vertex AI.
  */
 export const mockProvider: AIProvider = {
-  async generateScenarios(input: AnalysisInput): Promise<Scenario[]> {
+  async generateScenarios(input: AnalysisInput, _feedbackContext?: string): Promise<Scenario[]> {
     await delay(1400);
 
     const { score: volatility } = localRiskCalculator.calculate(input);
@@ -80,7 +80,10 @@ export const mockProvider: AIProvider = {
     ];
   },
 
-  async generateProposals(input: ProposalsGenerateInput): Promise<ProposalDraft[]> {
+  async generateProposals(
+    input: ProposalsGenerateInput,
+    _feedbackContext?: string,
+  ): Promise<ProposalDraft[]> {
     await delay(1200);
     const count = input.count ?? 4;
     const base: ProposalDraft[] = [

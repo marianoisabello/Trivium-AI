@@ -79,12 +79,13 @@ async function callGenerateContent(prompt: string): Promise<string> {
 export async function generateScenariosViaModel(
   input: AnalysisInput,
   callModel: (prompt: string) => Promise<string> = callGenerateContent,
+  feedbackContext?: string,
 ): Promise<Scenario[]> {
   const [risk, quotes] = await Promise.all([
     Promise.resolve(localRiskCalculator.calculate(input)),
     Promise.all(input.assets.map((asset) => getQuoteWithFallback(asset))),
   ]);
-  const prompt = buildScenariosPrompt(input, { risk, quotes });
+  const prompt = buildScenariosPrompt(input, { risk, quotes }, feedbackContext);
 
   try {
     return parseScenariosResponse(await callModel(prompt));
@@ -101,8 +102,9 @@ export async function generateScenariosViaModel(
 export async function generateProposalsViaModel(
   input: ProposalsGenerateInput,
   callModel: (prompt: string) => Promise<string> = callGenerateContent,
+  feedbackContext?: string,
 ): Promise<ProposalDraft[]> {
-  const prompt = buildProposalsPrompt(input);
+  const prompt = buildProposalsPrompt(input, feedbackContext);
   try {
     return parseProposalsResponse(await callModel(prompt));
   } catch (firstError) {
@@ -149,8 +151,10 @@ export async function generateInitiativesViaModel(
 }
 
 export const vertexProvider: AIProvider = {
-  generateScenarios: (input) => generateScenariosViaModel(input),
-  generateProposals: (input) => generateProposalsViaModel(input),
+  generateScenarios: (input, feedbackContext) =>
+    generateScenariosViaModel(input, undefined, feedbackContext),
+  generateProposals: (input, feedbackContext) =>
+    generateProposalsViaModel(input, undefined, feedbackContext),
   generateRecommendations: (input) => generateRecommendationsViaModel(input),
   generateInitiatives: (input) => generateInitiativesViaModel(input),
 };

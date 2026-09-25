@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Sparkles, FileDown } from "lucide-react";
+import { Plus, Trash2, Sparkles, FileDown, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Bar,
@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import jsPDF from "jspdf";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -39,6 +46,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { generateScenarios } from "@/services/scenariosService";
+import {
+  createScenarioFeedbackFn,
+  listAnalysisHistoryFn,
+} from "@/services/scenariosService.functions";
 import type { Asset, AssetType, Impact, KeyVariable, RiskLevel, Scenario } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +90,7 @@ interface HistoryItem {
 }
 
 function EscenariosPage() {
+  const { organization } = useAuth();
   const [name, setName] = useState("");
   const [situation, setSituation] = useState("");
   const [assets, setAssets] = useState<Asset[]>([
@@ -91,18 +103,21 @@ function EscenariosPage() {
   const [generating, setGenerating] = useState(false);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [scenarioFeedback, setScenarioFeedback] = useState<
+    Record<string, "aprobado" | "rechazado">
+  >({});
+  const [rejectingScenario, setRejectingScenario] = useState<Scenario | null>(null);
+  const [scenarioRejectReason, setScenarioRejectReason] = useState("");
 
   useEffect(() => {
-    void loadHistory();
-  }, []);
+    if (organization) {
+      void loadHistory();
+    }
+  }, [organization]);
 
   async function loadHistory() {
-    const { data } = await supabase
-      .from("analyses")
-      .select("id, name, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    setHistory((data as HistoryItem[]) ?? []);
+    const data = await listAnalysisHistoryFn();
+    setHistory(data);
   }
 
   function validate() {
@@ -132,6 +147,7 @@ function EscenariosPage() {
     }
     setGenerating(true);
     setScenarios([]);
+    setScenarioFeedback({});
     try {
       const result = await generateScenarios({
         name,
@@ -147,6 +163,30 @@ function EscenariosPage() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  /** Feedback por tipo de escenario, alimenta el prompt de próximas generaciones (scenario_feedback). */
+  async function submitScenarioFeedback(
+    s: Scenario,
+    decision: "aprobado" | "rechazado",
+    reason?: string,
+  ) {
+    if (!organization) return;
+    try {
+      await createScenarioFeedbackFn({ data: { scenarioType: s.type, decision, reason } });
+    } catch {
+      toast.error("No se pudo registrar el feedback");
+      return;
+    }
+    setScenarioFeedback((prev) => ({ ...prev, [s.id]: decision }));
+    toast.success(decision === "aprobado" ? "Escenario aprobado" : "Escenario rechazado");
+  }
+
+  function submitScenarioReject() {
+    if (!rejectingScenario) return;
+    void submitScenarioFeedback(rejectingScenario, "rechazado", scenarioRejectReason.trim());
+    setRejectingScenario(null);
+    setScenarioRejectReason("");
   }
 
   function exportPdf() {
@@ -485,7 +525,37 @@ function EscenariosPage() {
                 <Card key={s.id}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-base">Escenario {s.type}</CardTitle>
-                    <Badge variant="secondary">Probabilidad {s.probability}%</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">Probabilidad {s.probability}%</Badge>
+                      {scenarioFeedback[s.id] ? (
+                        <Badge
+                          variant={
+                            scenarioFeedback[s.id] === "aprobado" ? "default" : "destructive"
+                          }
+                        >
+                          {scenarioFeedback[s.id]}
+                        </Badge>
+                      ) : (
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Aprobar escenario ${s.type}`}
+                            onClick={() => void submitScenarioFeedback(s, "aprobado")}
+                          >
+                            <Check className="size-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Rechazar escenario ${s.type}`}
+                            onClick={() => setRejectingScenario(s)}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-baseline gap-2">
@@ -585,6 +655,35 @@ function EscenariosPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={!!rejectingScenario} onOpenChange={(o) => !o && setRejectingScenario(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar escenario {rejectingScenario?.type}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="scenario-reject-reason">Motivo (opcional)</Label>
+            <Textarea
+              id="scenario-reject-reason"
+              rows={3}
+              placeholder="Ej: muy pesimista para el contexto actual"
+              value={scenarioRejectReason}
+              onChange={(e) => setScenarioRejectReason(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              El motivo ayuda a que los próximos escenarios generados se ajusten mejor.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectingScenario(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={submitScenarioReject}>
+              Rechazar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

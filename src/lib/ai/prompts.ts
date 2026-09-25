@@ -12,6 +12,7 @@ export interface ScenariosPromptContext {
 export function buildScenariosPrompt(
   input: AnalysisInput,
   context: ScenariosPromptContext,
+  feedbackContext?: string,
 ): string {
   const quotesText = context.quotes
     .map(
@@ -44,12 +45,15 @@ Variables independientes clave (nombre, probabilidad, impacto) — considerá ca
 ${input.variables.map((v) => `- ${v.name}: probabilidad ${v.probability}%, impacto ${v.impact}`).join("\n")}
 
 Riesgo de cartera calculado (referencia, podés matizarlo por escenario): ${context.risk.label} (score ${context.risk.score.toFixed(2)}).
-
+${feedbackContext ? `\n${feedbackContext}\n` : ""}
 Respondé solo con el JSON del array, nada más.`;
 }
 
 /** Pide JSON estricto: un array de propuestas de producto/servicio para el segmento indicado. */
-export function buildProposalsPrompt(input: ProposalsGenerateInput): string {
+export function buildProposalsPrompt(
+  input: ProposalsGenerateInput,
+  feedbackContext?: string,
+): string {
   const count = input.count ?? 4;
   return `Sos un estratega comercial B2B senior. Devolvé ÚNICAMENTE un JSON (sin texto adicional, sin markdown, sin explicaciones) que sea un array de EXACTAMENTE ${count} propuestas de producto o servicio, en español.
 
@@ -64,7 +68,7 @@ Contexto:
 Segmento de cliente: ${input.segment}
 Canal preferido (usalo como guía, podés variar si tiene sentido comercial): ${input.channel}
 Cadencia preferida: ${input.cadence}
-
+${feedbackContext ? `\n${feedbackContext}\n` : ""}
 Respondé solo con el JSON del array, nada más.`;
 }
 

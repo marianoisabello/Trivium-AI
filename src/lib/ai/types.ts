@@ -59,8 +59,18 @@ export interface InitiativeDraft {
  * componentes.
  */
 export interface AIProvider {
-  generateScenarios(input: AnalysisInput): Promise<Scenario[]>;
-  generateProposals(input: ProposalsGenerateInput): Promise<ProposalDraft[]>;
+  /**
+   * feedbackContext (Fase 4): resumen del historial de aprobaciones/rechazos
+   * reciente de la organización (ver src/lib/server/feedbackContext.ts),
+   * armado por el server function y pasado al prompt como contexto extra.
+   * "Re-ranking simple" en la práctica: condiciona el prompt, no reentrena
+   * nada. Solo scenarios y proposals lo reciben (único alcance acordado).
+   */
+  generateScenarios(input: AnalysisInput, feedbackContext?: string): Promise<Scenario[]>;
+  generateProposals(
+    input: ProposalsGenerateInput,
+    feedbackContext?: string,
+  ): Promise<ProposalDraft[]>;
   generateRecommendations(input: CoCreationInput): Promise<ProductSuggestionDraft[]>;
   generateInitiatives(input: ResourcesInput): Promise<InitiativeDraft[]>;
 }
