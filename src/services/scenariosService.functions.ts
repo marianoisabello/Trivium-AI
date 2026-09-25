@@ -1,47 +1,39 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOrganization } from "@/lib/auth/verifyToken";
 import { analysisInputSchema, scenariosResponseSchema } from "@/lib/schemas";
 import type { AnalysisInput, Scenario } from "@/lib/types";
-import { resolveOrganizationId } from "@/lib/server/organization";
 import { checkRateLimit, withAiCallLogging } from "@/lib/server/aiCallLog";
 import { summarizeScenarioFeedback } from "@/lib/server/feedbackContext";
+import { createAnalysis } from "@/repositories/analyses";
+import { createScenariosForAnalysis } from "@/repositories/scenarios";
+import { listRecentScenarioFeedback } from "@/repositories/scenarioFeedback";
 
 /**
- * Server function que reemplaza conceptualmente a "/api/scenarios/generate":
- * esta versión de TanStack Start expone lógica de servidor como server
- * functions (RPC), no como rutas REST de archivo bajo /api/*. Reutiliza el
- * middleware requireSupabaseAuth ya existente en el proyecto (valida el JWT
- * de Supabase del request) en vez de reimplementar esa verificación acá.
+ * Server function de generación de escenarios. Antes usaba Supabase
+ * (context.supabase con RLS); ahora organizationId sale directo de los
+ * custom claims del token de Firebase (requireOrganization) -- sin
+ * round-trip a la base solo para resolverlo -- y persiste vía Prisma.
  */
 export const generateScenariosFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOrganization])
   .validator((input: unknown): AnalysisInput => analysisInputSchema.parse(input))
   .handler(async ({ data, context }): Promise<Scenario[]> => {
-    // Cliente con el JWT del usuario (de requireSupabaseAuth): las políticas
-    // RLS ya exigen organization_id = current_org_id(), así que no hace
-    // falta el service role para esta operación (queda para admin real).
-    const organizationId = await resolveOrganizationId(context.supabase, context.userId);
+    const { organizationId, firebaseUid } = context;
 
-    await checkRateLimit(context.supabase, organizationId);
+    await checkRateLimit(organizationId);
 
-    const { data: feedbackRows } = await context.supabase
-      .from("scenario_feedback")
-      .select("scenario_type, decision, reason")
-      .eq("organization_id", organizationId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-    const feedbackContext = summarizeScenarioFeedback(feedbackRows ?? []);
+    const feedbackRows = await listRecentScenarioFeedback(organizationId);
+    const feedbackContext = summarizeScenarioFeedback(feedbackRows);
 
     // Import dinámico: lib/ai/provider.ts arrastra el adapter de Vertex AI
     // (google-auth-library, dependencias de Node) que no debe terminar en
-    // el bundle de cliente — mismo patrón que client.server.ts.
+    // el bundle de cliente.
     const { getAIProvider } = await import("@/lib/ai/provider");
     const provider = process.env["AI_PROVIDER"] ?? "vertex";
     const scenarios = await withAiCallLogging<Scenario[]>(
-      context.supabase,
       {
         organizationId,
-        userId: context.userId,
+        firebaseUid,
         flow: "scenarios",
         provider,
         model: provider === "vertex" ? (process.env["VERTEX_AI_MODEL"] ?? null) : null,
@@ -52,40 +44,25 @@ export const generateScenariosFn = createServerFn({ method: "POST" })
         ),
     );
 
-    const { data: analysis, error: analysisError } = await context.supabase
-      .from("analyses")
-      .insert({
-        organization_id: organizationId,
-        created_by: context.userId,
-        name: data.name,
-        current_situation: data.currentSituation,
-        assets: data.assets as unknown as never,
-        variables: data.variables as unknown as never,
-        status: "completado",
-      })
-      .select("id")
-      .single();
+    const analysis = await createAnalysis(organizationId, firebaseUid, {
+      name: data.name,
+      currentSituation: data.currentSituation,
+      assets: data.assets,
+      variables: data.variables,
+    });
 
-    if (analysisError || !analysis) {
-      throw new Error(`No se pudo guardar el análisis: ${analysisError?.message ?? "sin id"}`);
-    }
-
-    const { error: scenariosError } = await context.supabase.from("scenarios").insert(
+    await createScenariosForAnalysis(
+      organizationId,
+      analysis.id,
       scenarios.map((s) => ({
-        organization_id: organizationId,
-        analysis_id: analysis.id,
         type: s.type,
-        expected_return: s.expectedReturn,
+        expectedReturn: s.expectedReturn,
         risk: s.risk,
         probability: s.probability,
         narrative: s.narrative,
-        drivers: s.drivers as unknown as never,
+        drivers: s.drivers,
       })),
     );
-
-    if (scenariosError) {
-      throw new Error(`No se pudieron guardar los escenarios: ${scenariosError.message}`);
-    }
 
     const { getQuoteWithFallback } = await import("@/lib/market");
     const quotes = await Promise.all(data.assets.map((asset) => getQuoteWithFallback(asset)));

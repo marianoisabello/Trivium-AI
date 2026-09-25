@@ -48,5 +48,26 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  // Regla de la migración a Cloud SQL: todo acceso a la DB pasa por un
+  // repository (src/repositories/**) -- nunca @prisma/client directo desde
+  // server functions, rutas o componentes.
+  {
+    files: ["**/*.{ts,tsx}"],
+    ignores: ["src/repositories/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@prisma/client",
+              message:
+                "No importes @prisma/client fuera de src/repositories/ — todo acceso a la base pasa por un repository (ver Sección 3 de la migración a Cloud SQL).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintPluginPrettier,
 );
