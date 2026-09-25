@@ -33,7 +33,20 @@ Credenciales de Google Cloud creadas (2026-09-24): proyecto `trivium-509620` (or
 - [x] Observabilidad: `ai_call_logs` (flow, provider, model, status, duration_ms) logueado en los 4 server functions de generación vía `src/lib/server/aiCallLog.ts`; rate limiting simple por organización (`AI_RATE_LIMIT_PER_HOUR`, default 30/hora) contra la misma tabla. **Costos en USD/tokens por proveedor no incluido todavía** — `callGenerateContent` en `vertex.ts` solo devuelve el texto, no `usageMetadata`; cambiar esa firma rompería en cascada los tests que inyectan `callModel`, se dejó fuera de esta pasada.
 - [ ] Comparar costos Google vs. externos con datos reales de uso y fijar proveedor por función — sigue sin poder hacerse: necesita datos reales que `ai_call_logs` recién empieza a juntar, y además tokens/costo todavía no se loguean (ver punto anterior).
 
-Migración pendiente de aplicar por el usuario: `supabase/migrations/20260924190000_feedback_and_ai_observability.sql` (crea `proposal_feedback`, `scenario_feedback`, `ai_call_logs`). No se corrió `npx supabase db push` en este entorno — la CLI no tiene el proyecto linkeado acá.
+~~Migración pendiente de aplicar por el usuario: `supabase/migrations/20260924190000_feedback_and_ai_observability.sql`~~ — obsoleto, ver Fase 5: Supabase se reemplazó por completo, `proposal_feedback`/`scenario_feedback`/`ai_call_logs` ahora son modelos de `prisma/schema.prisma`.
+
+## Fase 5 — Migración a Cloud SQL + Firebase Auth (independencia de Lovable Cloud) · 2026-09-25
+
+Reemplazo completo de Supabase (DB + Auth) por infraestructura propia en Google. Motivo: el proyecto de Supabase que usaba la app en runtime resultó estar provisionado por Lovable Cloud bajo una organización a la que la cuenta personal del equipo no tenía acceso — ni siquiera aparecía listado al intentar administrarlo, lo que costó bastante diagnosticar. Trabajado en la rama `feat/migracion-google`, un commit por sección:
+
+- [x] **Sección 1** — `prisma/schema.prisma` (replica el schema real de las migraciones de Supabase, no el del PRD original) + `docker-compose.yml` con Postgres 16 local. Verificado con un smoke test real (create/read/delete) antes de commitear.
+- [x] **Sección 2** — Firebase Auth reemplaza Supabase Auth. `organizationId`/`role` como custom claims del ID token (sin query a la base por request, la mejora de latencia buscada). `authService.functions.ts` (`bootstrapFn`, `createOrganizationFn`, etc.) reemplaza el trigger `handle_new_user` + RPC `create_organization`. Verificado end-to-end contra el emulador local de Firebase Auth: signup → bootstrap → onboarding → logout → login.
+- [x] **Sección 3** — Repositories para el resto de las entidades (`src/repositories/`), todos filtrando por `organizationId`. Regla de ESLint que prohíbe `@prisma/client` fuera de ahí. Test de integración (`tests/unit/orgScoping.test.ts`) contra el Postgres local, sin mockear Prisma.
+- [x] **Sección 4** — Las 6 pantallas que todavía llamaban a `supabase.from(...)` directo desde el browser (productos, escenarios, sustentabilidad, clientes, dashboard, configuración) pasan a usar server functions autenticados. Verificado en el navegador (no solo tests): el bug que disparó toda la migración (`scenario_feedback` con `PGRST205` contra el proyecto de Supabase equivocado) queda resuelto.
+- [x] **Sección 5** — `@supabase/supabase-js` sacado de `package.json`, `src/integrations/supabase/**` eliminado, `.env.example` creado (no existía), `CLAUDE.md` actualizado (stack, regla de repositories, tabla de recursos).
+- [ ] **Sección 6 / checklist manual del usuario** — sin hacer todavía, requiere consola de Google: instancia real de Cloud SQL, Identity Platform habilitado, service account, env vars nuevas en Vercel, pausar (no borrar) el proyecto de Supabase viejo por 30 días de rollback.
+
+Mientras el checklist manual no esté hecho, la app solo corre contra el stack local (Postgres de `docker-compose.yml` + emulador de Firebase Auth) — no hay despliegue real a Cloud SQL/Identity Platform todavía.
 
 ## Decisiones pendientes
 - ~~Proveedor LLM inicial~~ → resuelto: Vertex AI (Gemini) como proveedor por defecto (`AI_PROVIDER=vertex`) para Escenarios, con `AI_PROVIDER=mock` disponible para desarrollo sin credenciales.
