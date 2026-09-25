@@ -92,7 +92,7 @@ function ProductosPage() {
             <TabsTrigger value="co">Co-creación</TabsTrigger>
           </TabsList>
           <TabsContent value="auto" className="mt-6">
-            <PropuestasAutomaticas orgId={organization?.id ?? null} userId={user?.id ?? null} />
+            <PropuestasAutomaticas orgId={organization?.id ?? null} userId={user?.uid ?? null} />
           </TabsContent>
           <TabsContent value="co" className="mt-6">
             <CoCreacion />

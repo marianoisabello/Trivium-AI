@@ -12,7 +12,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -54,7 +55,7 @@ export function AppLayout({
   const initials = (fullName ?? user?.email ?? "U").slice(0, 2).toUpperCase();
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await firebaseSignOut(getFirebaseAuth());
     navigate({ to: "/auth", replace: true });
   }
 

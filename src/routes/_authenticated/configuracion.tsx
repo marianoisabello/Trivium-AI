@@ -46,7 +46,7 @@ function ConfigPage() {
         .eq("id", organization.id);
     }
     if (user) {
-      await supabase.from("profiles").update({ full_name: name.trim() }).eq("id", user.id);
+      await supabase.from("profiles").update({ full_name: name.trim() }).eq("id", user.uid);
     }
     await refresh();
     setSaving(false);

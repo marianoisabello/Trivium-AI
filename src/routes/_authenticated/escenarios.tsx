@@ -174,7 +174,7 @@ function EscenariosPage() {
     const { error } = await supabase.from("scenario_feedback").insert({
       organization_id: organization.id,
       scenario_type: s.type,
-      user_id: user?.id ?? null,
+      user_id: user?.uid ?? null,
       decision,
       reason: reason || null,
     });

@@ -2,7 +2,12 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Building2, Boxes, UserPlus, Check } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { refreshIdToken } from "@/lib/firebase/client";
+import {
+  completeOnboardingFn,
+  createOrganizationFn,
+  saveOrgResourcesFn,
+} from "@/services/authService.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +35,7 @@ const STEPS = [
 
 function Onboarding() {
   const navigate = useNavigate();
-  const { user, organization, refresh } = useAuth();
+  const { organization, refresh } = useAuth();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,14 +51,23 @@ function Onboarding() {
     }
     setErrors({});
     setSaving(true);
-    const { error } = await supabase.rpc("create_organization", {
-      _name: org.name.trim(),
-      ...(org.industry.trim() ? { _industry: org.industry.trim() } : {}),
-      ...(org.size.trim() ? { _size: org.size.trim() } : {}),
-    });
-    if (error) {
+    try {
+      await createOrganizationFn({
+        data: {
+          name: org.name.trim(),
+          ...(org.industry.trim() ? { industry: org.industry.trim() } : {}),
+          ...(org.size.trim() ? { size: org.size.trim() } : {}),
+        },
+      });
+      // El token recién emitido no tiene todavía el organizationId nuevo en
+      // sus custom claims -- forzar refresh antes de que saveOrgResourcesFn
+      // (que exige organizationId) se llame en el paso siguiente.
+      await refreshIdToken();
+    } catch (error) {
       setSaving(false);
-      toast.error("No pudimos guardar la organización", { description: error.message });
+      toast.error("No pudimos guardar la organización", {
+        description: (error as Error).message,
+      });
       return;
     }
     await refresh();
@@ -63,33 +77,14 @@ function Onboarding() {
 
   async function saveResources() {
     setSaving(true);
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("organization_id")
-      .eq("id", user!.id)
-      .maybeSingle();
-    if (prof?.organization_id) {
-      await supabase
-        .from("org_resources")
-        .insert({ organization_id: prof.organization_id, ...res });
-    }
+    await saveOrgResourcesFn({ data: res });
     setSaving(false);
     setStep(2);
   }
 
   async function finish() {
     setSaving(true);
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("organization_id")
-      .eq("id", user!.id)
-      .maybeSingle();
-    if (prof?.organization_id) {
-      await supabase
-        .from("organizations")
-        .update({ onboarding_completed: true })
-        .eq("id", prof.organization_id);
-    }
+    await completeOnboardingFn();
     await refresh();
     setSaving(false);
     const count = invites.split(/[\s,;]+/).filter((v) => v.includes("@")).length;
