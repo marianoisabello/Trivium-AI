@@ -6,8 +6,15 @@ import { GoogleAuth } from "google-auth-library";
 import { PrismaClient } from "@prisma/client";
 
 /**
- * Singleton de PrismaClient, server-only. En dev con HMR, guardarlo en
- * globalThis evita abrir una conexión nueva en cada recarga del módulo.
+ * Singleton de PrismaClient, server-only, con inicialización lazy.
+ *
+ * TanStack Start empaqueta los server functions en un mismo entry point de
+ * SSR: un `await` a nivel de módulo corre en el cold start de CUALQUIER
+ * request, incluso rutas que no tocan la base. Si el Cloud SQL Connector
+ * tarda o falla ahí, tira abajo toda la app (visto en producción: hasta
+ * rutas sin DB devolvían 500). Por eso `prisma` es un Proxy -- la conexión
+ * real recién se intenta en el primer método invocado, y solo ese request
+ * específico falla si algo sale mal.
  *
  * Vercel no tiene IP saliente estática, así que en producción no se puede
  * simplemente whitelistear una IP en Cloud SQL: la conexión pasa por el
@@ -16,7 +23,10 @@ import { PrismaClient } from "@prisma/client";
  * SQL Connector; ausente => DATABASE_URL directo (Postgres de
  * docker-compose en dev local).
  */
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient | undefined;
+  prismaInitPromise?: Promise<PrismaClient> | undefined;
+};
 
 interface ServiceAccountCredentials {
   project_id: string;
@@ -63,12 +73,57 @@ async function createCloudSqlPrismaClient(connectionName: string): Promise<Prism
   return new PrismaClient({ datasourceUrl });
 }
 
-const connectionName = process.env["CLOUD_SQL_CONNECTION_NAME"];
+function getPrismaClient(): Promise<PrismaClient> {
+  if (globalForPrisma.prisma) return Promise.resolve(globalForPrisma.prisma);
 
-export const prisma =
-  globalForPrisma.prisma ??
-  (await (connectionName ? createCloudSqlPrismaClient(connectionName) : new PrismaClient()));
+  globalForPrisma.prismaInitPromise ??= (async () => {
+    const connectionName = process.env["CLOUD_SQL_CONNECTION_NAME"];
+    const client = connectionName
+      ? await createCloudSqlPrismaClient(connectionName)
+      : new PrismaClient();
+    globalForPrisma.prisma = client;
+    return client;
+  })().catch((error: unknown) => {
+    // No dejar la promesa fallida cacheada -- el próximo request reintenta
+    // la conexión en vez de quedar rechazado para siempre.
+    globalForPrisma.prismaInitPromise = undefined;
+    throw error;
+  });
 
-if (process.env["NODE_ENV"] !== "production") {
-  globalForPrisma.prisma = prisma;
+  return globalForPrisma.prismaInitPromise;
 }
+
+type AsyncFn = (...args: unknown[]) => Promise<unknown>;
+type Delegate = Record<PropertyKey, AsyncFn>;
+
+function createModelProxy(modelName: PropertyKey): Delegate {
+  return new Proxy({} as Delegate, {
+    get(_target, method) {
+      return async (...args: unknown[]) => {
+        const client = await getPrismaClient();
+        const delegate = (client as unknown as Record<PropertyKey, Delegate>)[modelName]!;
+        return Reflect.apply(delegate[method]!, delegate, args);
+      };
+    },
+  });
+}
+
+/**
+ * Proxy que se comporta como PrismaClient para quien lo usa (mismas
+ * llamadas `prisma.modelo.metodo(...)` y `prisma.$metodo(...)` que un
+ * cliente real), pero recién conecta en el primer uso -- ver comentario
+ * arriba. El cast final es la única mentira de tipos: en runtime el shape
+ * es equivalente para await/then, que es como se usa en todo el código.
+ */
+export const prisma = new Proxy({} as Record<PropertyKey, unknown>, {
+  get(_target, prop) {
+    if (typeof prop === "string" && prop.startsWith("$")) {
+      return async (...args: unknown[]) => {
+        const client = await getPrismaClient();
+        const method = (client as unknown as Record<PropertyKey, AsyncFn>)[prop]!;
+        return Reflect.apply(method, client, args);
+      };
+    }
+    return createModelProxy(prop);
+  },
+}) as unknown as PrismaClient;
