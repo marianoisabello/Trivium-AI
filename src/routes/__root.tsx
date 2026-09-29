@@ -14,7 +14,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 
-
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -112,7 +111,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <HeadContent />
       </head>
@@ -137,4 +136,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

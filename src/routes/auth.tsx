@@ -1,9 +1,17 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import {
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
 import { Sparkles } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+import { bootstrapFn } from "@/services/authService.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,9 +55,10 @@ function AuthPage() {
   const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
+      if (user) navigate({ to: "/dashboard", replace: true });
     });
+    return unsubscribe;
   }, [navigate]);
 
   function validate(withName: boolean) {
@@ -67,12 +76,15 @@ function AuthPage() {
     ev.preventDefault();
     if (!validate(false)) return;
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
-    if (error) {
-      toast.error("No pudimos iniciar sesión", { description: error.message });
+    try {
+      await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+      await bootstrapFn({ data: { fullName: null, role: "admin" } });
+    } catch (error) {
+      setLoading(false);
+      toast.error("No pudimos iniciar sesión", { description: (error as Error).message });
       return;
     }
+    setLoading(false);
     toast.success("¡Bienvenido de nuevo!");
     navigate({ to: "/dashboard", replace: true });
   }
@@ -81,26 +93,21 @@ function AuthPage() {
     ev.preventDefault();
     if (!validate(true)) return;
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: fullName.trim(), role },
-      },
-    });
-    setLoading(false);
-    if (error) {
-      toast.error("No pudimos crear la cuenta", { description: error.message });
+    try {
+      const credential = await createUserWithEmailAndPassword(
+        getFirebaseAuth(),
+        email.trim(),
+        password,
+      );
+      await updateProfile(credential.user, { displayName: fullName.trim() });
+      await bootstrapFn({ data: { fullName: fullName.trim(), role } });
+    } catch (error) {
+      setLoading(false);
+      toast.error("No pudimos crear la cuenta", { description: (error as Error).message });
       return;
     }
-    if (data.session) {
-      navigate({ to: "/onboarding", replace: true });
-    } else {
-      toast.success("Revisá tu email", {
-        description: "Te enviamos un enlace para confirmar tu cuenta.",
-      });
-    }
+    setLoading(false);
+    navigate({ to: "/onboarding", replace: true });
   }
 
   async function handleForgotPassword(ev: React.FormEvent) {
@@ -112,14 +119,16 @@ function AuthPage() {
       return;
     }
     setForgotLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setForgotLoading(false);
-    if (error) {
-      toast.error("No pudimos enviar el email", { description: error.message });
+    try {
+      await sendPasswordResetEmail(getFirebaseAuth(), forgotEmail.trim(), {
+        url: `${window.location.origin}/reset-password`,
+      });
+    } catch (error) {
+      setForgotLoading(false);
+      toast.error("No pudimos enviar el email", { description: (error as Error).message });
       return;
     }
+    setForgotLoading(false);
     setForgotSent(true);
     toast.success("Revisá tu email", {
       description: "Te enviamos un enlace para restablecer tu contraseña.",
@@ -172,9 +181,7 @@ function AuthPage() {
                       onChange={(e) => setForgotEmail(e.target.value)}
                       aria-invalid={!!forgotError}
                     />
-                    {forgotError && (
-                      <p className="text-xs text-destructive">{forgotError}</p>
-                    )}
+                    {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
                   </div>
                   <Button type="submit" className="w-full" disabled={forgotLoading}>
                     {forgotLoading ? "Enviando…" : "Enviar enlace"}
@@ -183,108 +190,118 @@ function AuthPage() {
               )}
             </div>
           ) : (
-          <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Iniciar sesión</TabsTrigger>
-              <TabsTrigger value="signup">Crear cuenta</TabsTrigger>
-            </TabsList>
+            <Tabs defaultValue="signin">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Iniciar sesión</TabsTrigger>
+                <TabsTrigger value="signup">Crear cuenta</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="signin">
-              <form className="mt-6 space-y-4" onSubmit={handleSignIn} noValidate>
-                <div className="space-y-2">
-                  <Label htmlFor="email-in">Email</Label>
-                  <Input
-                    id="email-in"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!errors["email"]}
-                  />
-                  {errors["email"] && <p className="text-xs text-destructive">{errors["email"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pass-in">Contraseña</Label>
-                  <Input
-                    id="pass-in"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!errors["password"]}
-                  />
-                  {errors["password"] && <p className="text-xs text-destructive">{errors["password"]}</p>}
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Ingresando..." : "Ingresar"}
-                </Button>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                    onClick={() => {
-                      setForgotOpen(true);
-                      setForgotEmail(email);
-                      setForgotError(null);
-                      setForgotSent(false);
-                    }}
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </button>
-                </div>
-              </form>
-            </TabsContent>
+              <TabsContent value="signin">
+                <form className="mt-6 space-y-4" onSubmit={handleSignIn} noValidate>
+                  <div className="space-y-2">
+                    <Label htmlFor="email-in">Email</Label>
+                    <Input
+                      id="email-in"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      aria-invalid={!!errors["email"]}
+                    />
+                    {errors["email"] && (
+                      <p className="text-xs text-destructive">{errors["email"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pass-in">Contraseña</Label>
+                    <Input
+                      id="pass-in"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-invalid={!!errors["password"]}
+                    />
+                    {errors["password"] && (
+                      <p className="text-xs text-destructive">{errors["password"]}</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Ingresando..." : "Ingresar"}
+                  </Button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      onClick={() => {
+                        setForgotOpen(true);
+                        setForgotEmail(email);
+                        setForgotError(null);
+                        setForgotSent(false);
+                      }}
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </div>
+                </form>
+              </TabsContent>
 
-            <TabsContent value="signup">
-              <form className="mt-6 space-y-4" onSubmit={handleSignUp} noValidate>
-                <div className="space-y-2">
-                  <Label htmlFor="name-up">Nombre y apellido</Label>
-                  <Input
-                    id="name-up"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    aria-invalid={!!errors["fullName"]}
-                  />
-                  {errors["fullName"] && <p className="text-xs text-destructive">{errors["fullName"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email-up">Email</Label>
-                  <Input
-                    id="email-up"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!errors["email"]}
-                  />
-                  {errors["email"] && <p className="text-xs text-destructive">{errors["email"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pass-up">Contraseña</Label>
-                  <Input
-                    id="pass-up"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!errors["password"]}
-                  />
-                  {errors["password"] && <p className="text-xs text-destructive">{errors["password"]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role-up">Tipo de cuenta</Label>
-                  <Select value={role} onValueChange={(v) => setRole(v as "admin" | "cliente")}>
-                    <SelectTrigger id="role-up">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Administrador (todos los módulos)</SelectItem>
-                      <SelectItem value="cliente">Cliente final (sólo Co-creación)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creando cuenta..." : "Crear cuenta"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="signup">
+                <form className="mt-6 space-y-4" onSubmit={handleSignUp} noValidate>
+                  <div className="space-y-2">
+                    <Label htmlFor="name-up">Nombre y apellido</Label>
+                    <Input
+                      id="name-up"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      aria-invalid={!!errors["fullName"]}
+                    />
+                    {errors["fullName"] && (
+                      <p className="text-xs text-destructive">{errors["fullName"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email-up">Email</Label>
+                    <Input
+                      id="email-up"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      aria-invalid={!!errors["email"]}
+                    />
+                    {errors["email"] && (
+                      <p className="text-xs text-destructive">{errors["email"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pass-up">Contraseña</Label>
+                    <Input
+                      id="pass-up"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-invalid={!!errors["password"]}
+                    />
+                    {errors["password"] && (
+                      <p className="text-xs text-destructive">{errors["password"]}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role-up">Tipo de cuenta</Label>
+                    <Select value={role} onValueChange={(v) => setRole(v as "admin" | "cliente")}>
+                      <SelectTrigger id="role-up">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador (todos los módulos)</SelectItem>
+                        <SelectItem value="cliente">Cliente final (sólo Co-creación)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Creando cuenta..." : "Crear cuenta"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </div>

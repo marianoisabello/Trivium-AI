@@ -16,9 +16,29 @@ dist-ssr
 .nitro
 *.local
 
+# El proyecto usa bun (bun.lock es el lockfile versionado)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+
+# Variables de entorno con secretos. .env estuvo trackeado en el repo (commit
+# beb8fdc) y sigue en el historial de git — no lo reescribimos acá (decisión
+# explícita: invasivo, rompe cualquier otro clone). A partir de ahora se deja
+# de trackear hacia adelante (git rm --cached); todo secreto nuevo va en
+# .env.local.
+.env
+.env.local
+.env.*.local
+prisma/.env
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
 
 # Editor directories and files
 .vscode/*

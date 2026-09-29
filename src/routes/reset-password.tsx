@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { confirmPasswordReset, signOut, verifyPasswordResetCode } from "firebase/auth";
 import { Sparkles } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,10 +28,7 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
-const passwordSchema = z
-  .string()
-  .min(6, "La contraseña debe tener al menos 6 caracteres")
-  .max(72);
+const passwordSchema = z.string().min(6, "La contraseña debe tener al menos 6 caracteres").max(72);
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -39,18 +37,26 @@ function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [oobCode, setOobCode] = useState<string | null>(null);
 
   useEffect(() => {
-    // La recuperación llega con un hash tipo #type=recovery&access_token=...
-    const hash = window.location.hash.replace(/^#/, "");
-    const params = new URLSearchParams(hash);
-    const type = params.get("type");
-    if (type !== "recovery") {
-      // Si no hay sesión de recuperación, redirigir al login
+    // Firebase manda el link con ?mode=resetPassword&oobCode=... (query, no hash).
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const code = params.get("oobCode");
+    if (mode !== "resetPassword" || !code) {
       navigate({ to: "/auth", replace: true });
       return;
     }
-    setReady(true);
+    verifyPasswordResetCode(getFirebaseAuth(), code)
+      .then(() => {
+        setOobCode(code);
+        setReady(true);
+      })
+      .catch(() => {
+        toast.error("El enlace no es válido o ya expiró");
+        navigate({ to: "/auth", replace: true });
+      });
   }, [navigate]);
 
   async function handleSubmit(ev: React.FormEvent) {
@@ -65,19 +71,22 @@ function ResetPasswordPage() {
       setError("Las contraseñas no coinciden");
       return;
     }
+    if (!oobCode) return;
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-    if (updateError) {
+    try {
+      await confirmPasswordReset(getFirebaseAuth(), oobCode, password);
+    } catch (updateError) {
+      setLoading(false);
       toast.error("No pudimos actualizar la contraseña", {
-        description: updateError.message,
+        description: (updateError as Error).message,
       });
       return;
     }
+    setLoading(false);
     toast.success("Contraseña actualizada", {
       description: "Iniciá sesión con tu nueva contraseña.",
     });
-    await supabase.auth.signOut();
+    await signOut(getFirebaseAuth());
     navigate({ to: "/auth", replace: true });
   }
 
@@ -100,9 +109,7 @@ function ResetPasswordPage() {
         </Link>
 
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-foreground">
-            Restablecer contraseña
-          </h1>
+          <h1 className="text-xl font-semibold text-foreground">Restablecer contraseña</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Definí una nueva contraseña para tu cuenta.
           </p>

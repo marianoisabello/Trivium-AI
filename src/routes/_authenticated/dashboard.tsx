@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LineChart, Package, Leaf, ArrowRight, Activity } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { getDashboardSummaryFn } from "@/services/dashboardService.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,40 +47,11 @@ function Dashboard() {
       return;
     }
     void (async () => {
-      const [analyses, proposals, initiatives] = await Promise.all([
-        supabase
-          .from("analyses")
-          .select("name, created_at")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase.from("proposals").select("name, status, created_at"),
-        supabase.from("initiatives").select("title, status, created_at"),
-      ]);
-      setLastAnalysis(analyses.data?.[0]?.name ?? null);
-      setProposalsSent((proposals.data ?? []).filter((p) => p.status === "enviada").length);
-      setActiveInitiatives(
-        (initiatives.data ?? []).filter((i) => i.status === "en ejecución").length,
-      );
-      const feed: Activity[] = [
-        ...(analyses.data ?? []).map((a) => ({
-          label: "Nuevo análisis de escenarios",
-          detail: a.name,
-          date: a.created_at,
-        })),
-        ...(proposals.data ?? []).slice(0, 5).map((p) => ({
-          label: `Propuesta ${p.status}`,
-          detail: p.name,
-          date: p.created_at,
-        })),
-        ...(initiatives.data ?? []).slice(0, 5).map((i) => ({
-          label: `Iniciativa ${i.status}`,
-          detail: i.title,
-          date: i.created_at,
-        })),
-      ]
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 8);
-      setActivity(feed);
+      const summary = await getDashboardSummaryFn();
+      setLastAnalysis(summary.lastAnalysisName);
+      setProposalsSent(summary.proposalsSent);
+      setActiveInitiatives(summary.activeInitiatives);
+      setActivity(summary.activity);
       setLoading(false);
     })();
   }, [authLoading, organization, role, navigate]);

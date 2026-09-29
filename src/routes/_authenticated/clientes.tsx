@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { createClientFn, listClientsFn } from "@/services/clientsService.functions";
+import type { ClientRow } from "@/repositories/clients";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -33,23 +34,16 @@ export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
     meta: [
       { title: "Clientes — Trivium AI" },
-      { name: "description", content: "CRM simple con canales de contacto e historial de consumo." },
+      {
+        name: "description",
+        content: "CRM simple con canales de contacto e historial de consumo.",
+      },
       { property: "og:title", content: "Clientes — Trivium AI" },
       { property: "og:description", content: "Gestioná tus clientes y su historial de consumo." },
     ],
   }),
   component: ClientesPage,
 });
-
-interface Row {
-  id: string;
-  name: string;
-  email: string | null;
-  linkedin: string | null;
-  whatsapp: string | null;
-  segment: string | null;
-  consumption: unknown;
-}
 
 const schema = z.object({
   name: z.string().trim().min(2, "Ingresá el nombre").max(120),
@@ -61,7 +55,7 @@ const schema = z.object({
 
 function ClientesPage() {
   const { organization } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -80,11 +74,8 @@ function ClientesPage() {
   }, []);
 
   async function load() {
-    const { data } = await supabase
-      .from("clients")
-      .select("id, name, email, linkedin, whatsapp, segment, consumption")
-      .order("created_at", { ascending: false });
-    setRows((data as Row[]) ?? []);
+    const data = await listClientsFn();
+    setRows(data);
     setLoading(false);
   }
 
@@ -102,25 +93,35 @@ function ClientesPage() {
     }
     setErrors({});
     setSaving(true);
-    const { error } = await supabase.from("clients").insert({
-      organization_id: organization.id,
-      name: form.name.trim(),
-      email: form.email.trim() || null,
-      linkedin: form.linkedin.trim() || null,
-      whatsapp: form.whatsapp.trim() || null,
-      segment: form.segment.trim() || null,
-      consumption: form.consumption
-        .split(",")
-        .map((c) => c.trim())
-        .filter(Boolean) as unknown as never,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error("No pudimos guardar el cliente", { description: error.message });
+    try {
+      await createClientFn({
+        data: {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          linkedin: form.linkedin.trim(),
+          whatsapp: form.whatsapp.trim(),
+          segment: form.segment.trim(),
+          consumption: form.consumption
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean),
+        },
+      });
+    } catch (error) {
+      setSaving(false);
+      toast.error("No pudimos guardar el cliente", { description: (error as Error).message });
       return;
     }
+    setSaving(false);
     setOpen(false);
-    setForm({ name: "", email: "", linkedin: "", whatsapp: "", segment: "Corporativo", consumption: "" });
+    setForm({
+      name: "",
+      email: "",
+      linkedin: "",
+      whatsapp: "",
+      segment: "Corporativo",
+      consumption: "",
+    });
     toast.success("Cliente agregado");
     void load();
   }

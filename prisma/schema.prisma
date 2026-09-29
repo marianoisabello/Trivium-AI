@@ -1,0 +1,254 @@
+// Replica el schema real de supabase/migrations/*.sql (Fases 1-4), no el PRD
+// original: assets/variables son Json en Analysis (no tablas separadas), no
+// existe client_consents/approved_by (nunca se implementó, ver CLAUDE.md vs
+// context.md). profiles.id pasa de FK a auth.users a firebaseUid propio.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  cliente
+
+  @@map("app_role")
+}
+
+model Organization {
+  id                   String   @id @default(uuid()) @db.Uuid
+  name                 String
+  industry             String?
+  size                 String?
+  onboardingCompleted  Boolean  @default(false) @map("onboarding_completed")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  profiles          Profile[]
+  orgResources      OrgResource[]
+  analyses          Analysis[]
+  scenarios         Scenario[]
+  clients           Client[]
+  proposals         Proposal[]
+  initiatives       Initiative[]
+  kpis              Kpi[]
+  kpiMeasurements   KpiMeasurement[]
+  proposalFeedback  ProposalFeedback[]
+  scenarioFeedback  ScenarioFeedback[]
+  aiCallLogs        AiCallLog[]
+
+  @@map("organizations")
+}
+
+/// Identidad: firebaseUid es la clave, ya no hay auth.users detrás.
+model Profile {
+  firebaseUid    String   @id @map("firebase_uid")
+  organizationId String?  @map("organization_id") @db.Uuid
+  fullName       String?  @map("full_name")
+  email          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  roles        UserRole[]
+
+  @@map("profiles")
+}
+
+model UserRole {
+  id            String @id @default(uuid()) @db.Uuid
+  firebaseUid   String @map("user_id")
+  role          Role   @default(admin)
+
+  profile Profile @relation(fields: [firebaseUid], references: [firebaseUid], onDelete: Cascade)
+
+  @@unique([firebaseUid, role])
+  @@map("user_roles")
+}
+
+model OrgResource {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  materials      String?
+  capacities     String?
+  waste          String?
+  workforce      String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("org_resources")
+}
+
+model Analysis {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  createdBy        String?  @map("created_by")
+  name             String
+  currentSituation String?  @map("current_situation")
+  assets           Json     @default("[]")
+  variables        Json     @default("[]")
+  status           String   @default("completado")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scenarios        Scenario[]
+  scenarioFeedback ScenarioFeedback[]
+
+  @@map("analyses")
+}
+
+model Scenario {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  analysisId     String   @map("analysis_id") @db.Uuid
+  type           String
+  expectedReturn Decimal  @default(0) @map("expected_return")
+  risk           String   @default("medio")
+  probability    Decimal  @default(0)
+  narrative      String?
+  drivers        Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  analysis     Analysis     @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("scenarios")
+}
+
+model Client {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  email          String?
+  linkedin       String?
+  whatsapp       String?
+  segment        String?
+  consumption    Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  proposals    Proposal[]
+
+  @@map("clients")
+}
+
+model Proposal {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  clientId       String?  @map("client_id") @db.Uuid
+  name           String
+  description    String?
+  targetClient   String?  @map("target_client")
+  channel        String   @default("Email")
+  schedule       String   @default("semanal")
+  status         String   @default("borrador")
+  template       String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client       Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  feedback     ProposalFeedback[]
+
+  @@map("proposals")
+}
+
+model Initiative {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  title          String
+  scopes         String[] @default([])
+  goal           String?
+  plan           Json     @default("[]")
+  status         String   @default("propuesta")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kpis         Kpi[]
+
+  @@map("initiatives")
+}
+
+model Kpi {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  initiativeId   String   @map("initiative_id") @db.Uuid
+  name           String
+  unit           String?
+  targetValue    Decimal  @default(100) @map("target_value")
+  currentValue   Decimal  @default(0) @map("current_value")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  initiative   Initiative       @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  measurements KpiMeasurement[]
+
+  @@map("kpis")
+}
+
+model KpiMeasurement {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  kpiId          String   @map("kpi_id") @db.Uuid
+  value          Decimal
+  measuredAt     DateTime @default(now()) @map("measured_at") @db.Date
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kpi          Kpi          @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@map("kpi_measurements")
+}
+
+model ProposalFeedback {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  proposalId     String   @map("proposal_id") @db.Uuid
+  firebaseUid    String?  @map("user_id")
+  decision       String
+  reason         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  proposal     Proposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@map("proposal_feedback")
+}
+
+model ScenarioFeedback {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  analysisId     String?  @map("analysis_id") @db.Uuid
+  scenarioType   String   @map("scenario_type")
+  firebaseUid    String?  @map("user_id")
+  decision       String
+  reason         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  analysis     Analysis?    @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+
+  @@map("scenario_feedback")
+}
+
+model AiCallLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  firebaseUid    String?  @map("user_id")
+  flow           String
+  provider       String
+  model          String?
+  status         String
+  attemptCount   Int      @default(1) @map("attempt_count")
+  durationMs     Int      @default(0) @map("duration_ms")
+  errorMessage   String?  @map("error_message")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("ai_call_logs")
+}

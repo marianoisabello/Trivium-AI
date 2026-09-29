@@ -6,3 +6,6 @@ pnpm-lock.yaml
 package-lock.json
 bun.lock
 routeTree.gen.ts
+
+# Generado por Lovable Cloud / Supabase CLI, se pisa en cada sync — no formatear.
+src/integrations/supabase/

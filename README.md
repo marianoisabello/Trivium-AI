@@ -121,3 +121,21 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Tests
+
+```sh
+npm run lint
+npm run test
+npm run test:e2e
+```
+
+`npm run test` corre los unitarios con Vitest. `npm run test:e2e` corre Playwright (Chromium) sobre el flujo de Escenarios Futuros.
+
+La primera vez hay que instalar el browser:
+
+```sh
+npx playwright install chromium
+```
+
+Los e2e no llaman a Vertex AI. Interceptan la generación con `page.route`: el cliente pega al RPC `/_serverFn/*` (server function de TanStack Start, equivalente al `/api/scenarios/generate` del diseño original) y el test responde con escenarios fijos. Auth y el historial de Supabase también se simulan en el browser.

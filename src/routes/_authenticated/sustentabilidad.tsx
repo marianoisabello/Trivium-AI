@@ -12,7 +12,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { generateInitiatives } from "@/services/sustainabilityService";
-import type { Initiative, InitiativeStatus, Kpi, PlanStep, ResourcesInput } from "@/lib/types";
+import {
+  listInitiativesFn,
+  moveInitiativeFn,
+  saveKpiFn,
+} from "@/services/sustainabilityService.functions";
+import type { Initiative, InitiativeStatus, Kpi, ResourcesInput } from "@/lib/types";
 
 export const Route = createFileRoute("/_authenticated/sustentabilidad")({
   head: () => ({
@@ -81,40 +85,24 @@ function SustentabilidadPage() {
   const [measure, setMeasure] = useState({ value: 0, date: new Date().toISOString().slice(0, 10) });
 
   useEffect(() => {
-    void load();
-  }, []);
+    if (organization) {
+      void load();
+    } else {
+      setLoading(false);
+    }
+  }, [organization]);
 
   async function load() {
-    const [{ data: inis }, { data: kpis }] = await Promise.all([
-      supabase.from("initiatives").select("*").order("created_at", { ascending: false }),
-      supabase.from("kpis").select("*"),
-    ]);
-    setInitiatives(
-      (inis ?? []).map((i) => ({
-        id: i.id,
-        title: i.title,
-        scopes: i.scopes ?? [],
-        goal: i.goal ?? "",
-        plan: (Array.isArray(i.plan) ? i.plan : []) as unknown as PlanStep[],
-        status: i.status as InitiativeStatus,
-        kpis: (kpis ?? [])
-          .filter((k) => k.initiative_id === i.id)
-          .map((k) => ({
-            id: k.id,
-            name: k.name,
-            unit: k.unit ?? "",
-            target: Number(k.target_value),
-            current: Number(k.current_value),
-          })),
-      })),
-    );
+    const data = await listInitiativesFn();
+    setInitiatives(data);
     setLoading(false);
   }
 
   async function handleGenerate() {
     const next: Record<string, string> = {};
     if (res.materials.trim().length < 3) next["materials"] = "Describí los materiales disponibles";
-    if (res.capacities.trim().length < 3) next["capacities"] = "Describí las capacidades instaladas";
+    if (res.capacities.trim().length < 3)
+      next["capacities"] = "Describí las capacidades instaladas";
     setErrors(next);
     if (Object.keys(next).length) {
       toast.error("Completá los datos de recursos");
@@ -123,32 +111,6 @@ function SustentabilidadPage() {
     setGenerating(true);
     const generated = await generateInitiatives(res);
     if (organization) {
-      for (const ini of generated) {
-        const { data } = await supabase
-          .from("initiatives")
-          .insert({
-            organization_id: organization.id,
-            title: ini.title,
-            scopes: ini.scopes,
-            goal: ini.goal,
-            plan: ini.plan as unknown as never,
-            status: ini.status,
-          })
-          .select("id")
-          .single();
-        if (data) {
-          await supabase.from("kpis").insert(
-            ini.kpis.map((k) => ({
-              organization_id: organization.id,
-              initiative_id: data.id,
-              name: k.name,
-              unit: k.unit,
-              target_value: k.target,
-              current_value: k.current,
-            })),
-          );
-        }
-      }
       await load();
     } else {
       setInitiatives([...generated, ...initiatives]);
@@ -159,7 +121,7 @@ function SustentabilidadPage() {
 
   async function moveInitiative(id: string, status: InitiativeStatus) {
     setInitiatives(initiatives.map((i) => (i.id === id ? { ...i, status } : i)));
-    await supabase.from("initiatives").update({ status }).eq("id", id);
+    await moveInitiativeFn({ data: { initiativeId: id, status } });
   }
 
   function openKpi(kpi: Kpi, initiativeId: string) {
@@ -195,21 +157,16 @@ function SustentabilidadPage() {
           : i,
       ),
     );
-    await supabase
-      .from("kpis")
-      .update({
-        name: kpiForm.name,
-        unit: kpiForm.unit,
-        target_value: kpiForm.target,
-        current_value: measure.value,
-      })
-      .eq("id", kpi.id);
     if (organization) {
-      await supabase.from("kpi_measurements").insert({
-        organization_id: organization.id,
-        kpi_id: kpi.id,
-        value: measure.value,
-        measured_at: measure.date,
+      await saveKpiFn({
+        data: {
+          kpiId: kpi.id,
+          name: kpiForm.name,
+          unit: kpiForm.unit,
+          target: kpiForm.target,
+          measurementValue: measure.value,
+          measurementDate: measure.date,
+        },
       });
     }
     setEditingKpi(null);
