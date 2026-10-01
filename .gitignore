@@ -50,3 +50,6 @@ prisma/.env
 *.njsproj
 *.sln
 *.sw?
+
+# Vercel CLI build output (vercel build / vercel dev)
+.vercel
