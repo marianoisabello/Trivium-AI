@@ -1,7 +1,23 @@
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+
+// @grpc/grpc-js (pulled in transitively by @google-cloud/cloud-sql-connector,
+// loaded lazily by src/repositories/prisma.ts on first DB access) references
+// __dirname at module scope to locate bundled .proto files for a gRPC
+// reflection feature we never use. Nitro's ESM bundle for Vercel doesn't shim
+// that CJS global for every chunk, so merely importing the chain throws
+// `ReferenceError: __dirname is not defined` -- taking down that request (and,
+// before prisma.ts's lazy init, every request). The exact value here is
+// irrelevant (the .proto lookup it feeds is dead code for us); it only needs
+// to exist so the reference doesn't throw. Runs once at module init, well
+// before the dynamic import below ever pulls that chain in.
+if (typeof (globalThis as { __dirname?: string }).__dirname === "undefined") {
+  (globalThis as { __dirname?: string }).__dirname = dirname(fileURLToPath(import.meta.url));
+}
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
