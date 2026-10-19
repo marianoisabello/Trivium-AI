@@ -5,6 +5,7 @@ import {
   Package,
   Leaf,
   Settings,
+  ShieldCheck,
   Users,
   Bell,
   LogOut,
@@ -28,13 +29,31 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+// El superadmin ve todo lo del admin (sobre su propia organización, si tiene una)
+// más "Plataforma", que es la única vista cross-organización.
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
-  { to: "/escenarios", label: "Escenarios Futuros", icon: LineChart, roles: ["admin"] },
-  { to: "/productos", label: "Generador de Productos", icon: Package, roles: ["admin", "cliente"] },
-  { to: "/sustentabilidad", label: "Sustentabilidad", icon: Leaf, roles: ["admin"] },
-  { to: "/clientes", label: "Clientes", icon: Users, roles: ["admin"] },
-  { to: "/configuracion", label: "Configuración", icon: Settings, roles: ["admin", "cliente"] },
+  { to: "/plataforma", label: "Plataforma", icon: ShieldCheck, roles: ["superadmin"] },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "superadmin"] },
+  {
+    to: "/escenarios",
+    label: "Escenarios Futuros",
+    icon: LineChart,
+    roles: ["admin", "superadmin"],
+  },
+  {
+    to: "/productos",
+    label: "Generador de Productos",
+    icon: Package,
+    roles: ["admin", "cliente", "superadmin"],
+  },
+  { to: "/sustentabilidad", label: "Sustentabilidad", icon: Leaf, roles: ["admin", "superadmin"] },
+  { to: "/clientes", label: "Clientes", icon: Users, roles: ["admin", "superadmin"] },
+  {
+    to: "/configuracion",
+    label: "Configuración",
+    icon: Settings,
+    roles: ["admin", "cliente", "superadmin"],
+  },
 ] as const;
 
 export function AppLayout({

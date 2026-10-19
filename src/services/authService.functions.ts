@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth, requireOrganization } from "@/lib/auth/verifyToken";
 import { getFirebaseAdminAuth } from "@/lib/firebase/admin";
+import { SELF_ASSIGNABLE_ROLES } from "@/lib/auth/roles";
 import {
   assignOrganization,
   ensureProfile,
@@ -19,7 +20,8 @@ import { saveOrgResources } from "@/repositories/orgResources";
 
 const bootstrapInputSchema = z.object({
   fullName: z.string().min(1).nullable(),
-  role: z.enum(["admin", "cliente"]).default("admin"),
+  // Nunca incluir "superadmin" acá: ver SELF_ASSIGNABLE_ROLES en src/lib/auth/roles.ts.
+  role: z.enum(SELF_ASSIGNABLE_ROLES).default("admin"),
 });
 
 /**

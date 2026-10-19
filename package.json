@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "seed": "bun scripts/seed.ts",
-    "seed:reset": "bun scripts/seedReset.ts"
+    "seed:reset": "bun scripts/seedReset.ts",
+    "superadmin:grant": "bun scripts/grantSuperadmin.ts",
+    "superadmin:revoke": "bun scripts/grantSuperadmin.ts --revoke"
   },
   "overrides": {
     "rolldown": "1.2.1"
