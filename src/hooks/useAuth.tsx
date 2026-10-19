@@ -3,7 +3,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { getCurrentUserFn } from "@/services/authService.functions";
 
-export type Role = "admin" | "cliente";
+export type Role = "admin" | "cliente" | "superadmin";
 
 export interface Organization {
   id: string;

@@ -1,6 +1,8 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { getFirebaseAdminAuth } from "@/lib/firebase/admin";
+import { isSuperadminAuthorized, type AppRole } from "@/lib/auth/roles";
+import { hasRole } from "@/repositories/profiles";
 
 /**
  * Reemplaza requireSupabaseAuth (src/integrations/supabase/auth-middleware.ts,
@@ -40,11 +42,28 @@ export const requireFirebaseAuth = createMiddleware({ type: "function" }).server
         firebaseUid: decoded.uid,
         email: decoded.email ?? null,
         organizationId,
-        role: role as "admin" | "cliente",
+        role: role as AppRole,
       },
     });
   },
 );
+
+/**
+ * Solo para las server functions de plataforma (src/services/platformService.functions.ts),
+ * las únicas que pueden leer datos de TODAS las organizaciones. No exige
+ * organizationId: un superadmin puede no pertenecer a ninguna organización.
+ * Verifica el claim del token Y la fila de rol en la base (ver isSuperadminAuthorized).
+ */
+export const requireSuperadmin = createMiddleware({ type: "function" })
+  .middleware([requireFirebaseAuth])
+  .server(async ({ next, context }) => {
+    const hasDbRole =
+      context.role === "superadmin" && (await hasRole(context.firebaseUid, "superadmin"));
+    if (!isSuperadminAuthorized(context.role, hasDbRole)) {
+      throw new Error("Forbidden: se requiere rol superadmin");
+    }
+    return next({ context: { firebaseUid: context.firebaseUid } });
+  });
 
 /**
  * Igual que requireFirebaseAuth pero exige organizationId ya asignado --

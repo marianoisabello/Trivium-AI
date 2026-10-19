@@ -18,6 +18,7 @@ import { Route as AuthenticatedConfiguracionRouteImport } from './routes/_authen
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEscenariosRouteImport } from './routes/_authenticated/escenarios'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedPlataformaRouteImport } from './routes/_authenticated/plataforma'
 import { Route as AuthenticatedProductosRouteImport } from './routes/_authenticated/productos'
 import { Route as AuthenticatedSustentabilidadRouteImport } from './routes/_authenticated/sustentabilidad'
 
@@ -66,6 +67,11 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPlataformaRoute = AuthenticatedPlataformaRouteImport.update({
+  id: '/plataforma',
+  path: '/plataforma',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProductosRoute = AuthenticatedProductosRouteImport.update({
   id: '/productos',
   path: '/productos',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/escenarios': typeof AuthenticatedEscenariosRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/plataforma': typeof AuthenticatedPlataformaRoute
   '/productos': typeof AuthenticatedProductosRoute
   '/sustentabilidad': typeof AuthenticatedSustentabilidadRoute
 }
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/escenarios': typeof AuthenticatedEscenariosRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/plataforma': typeof AuthenticatedPlataformaRoute
   '/productos': typeof AuthenticatedProductosRoute
   '/sustentabilidad': typeof AuthenticatedSustentabilidadRoute
 }
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/escenarios': typeof AuthenticatedEscenariosRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/plataforma': typeof AuthenticatedPlataformaRoute
   '/_authenticated/productos': typeof AuthenticatedProductosRoute
   '/_authenticated/sustentabilidad': typeof AuthenticatedSustentabilidadRoute
 }
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/escenarios'
     | '/onboarding'
+    | '/plataforma'
     | '/productos'
     | '/sustentabilidad'
   fileRoutesByTo: FileRoutesByTo
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/escenarios'
     | '/onboarding'
+    | '/plataforma'
     | '/productos'
     | '/sustentabilidad'
   id:
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/escenarios'
     | '/_authenticated/onboarding'
+    | '/_authenticated/plataforma'
     | '/_authenticated/productos'
     | '/_authenticated/sustentabilidad'
   fileRoutesById: FileRoutesById
@@ -228,6 +240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/plataforma': {
+      id: '/_authenticated/plataforma'
+      path: '/plataforma'
+      fullPath: '/plataforma'
+      preLoaderRoute: typeof AuthenticatedPlataformaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/productos': {
       id: '/_authenticated/productos'
       path: '/productos'
@@ -251,6 +270,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEscenariosRoute: typeof AuthenticatedEscenariosRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedPlataformaRoute: typeof AuthenticatedPlataformaRoute
   AuthenticatedProductosRoute: typeof AuthenticatedProductosRoute
   AuthenticatedSustentabilidadRoute: typeof AuthenticatedSustentabilidadRoute
 }
@@ -261,6 +281,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEscenariosRoute: AuthenticatedEscenariosRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedPlataformaRoute: AuthenticatedPlataformaRoute,
   AuthenticatedProductosRoute: AuthenticatedProductosRoute,
   AuthenticatedSustentabilidadRoute: AuthenticatedSustentabilidadRoute,
 }

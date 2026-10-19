@@ -1,5 +1,6 @@
 import { prisma } from "@/repositories/prisma";
 import type { Role } from "@prisma/client";
+import { pickEffectiveRole } from "@/lib/auth/roles";
 
 export interface ProfileRecord {
   firebaseUid: string;
@@ -42,9 +43,34 @@ export async function getProfile(firebaseUid: string): Promise<ProfileRecord | n
   return prisma.profile.findUnique({ where: { firebaseUid } });
 }
 
+/** Rol efectivo: determinista aunque el usuario tenga varios (superadmin > admin > cliente). */
 export async function getRole(firebaseUid: string): Promise<Role> {
-  const row = await prisma.userRole.findFirst({ where: { firebaseUid } });
-  return row?.role ?? "admin";
+  const rows = await prisma.userRole.findMany({ where: { firebaseUid }, select: { role: true } });
+  return pickEffectiveRole(rows.map((r) => r.role));
+}
+
+export async function hasRole(firebaseUid: string, role: Role): Promise<boolean> {
+  const row = await prisma.userRole.findUnique({
+    where: { firebaseUid_role: { firebaseUid, role } },
+    select: { id: true },
+  });
+  return row !== null;
+}
+
+/**
+ * Solo para scripts de operación (scripts/grant-superadmin.ts). El profile tiene
+ * que existir (el usuario ya inició sesión alguna vez): la FK lo exige.
+ */
+export async function grantRole(firebaseUid: string, role: Role): Promise<void> {
+  await prisma.userRole.upsert({
+    where: { firebaseUid_role: { firebaseUid, role } },
+    update: {},
+    create: { firebaseUid, role },
+  });
+}
+
+export async function revokeRole(firebaseUid: string, role: Role): Promise<void> {
+  await prisma.userRole.deleteMany({ where: { firebaseUid, role } });
 }
 
 export async function assignOrganization(
