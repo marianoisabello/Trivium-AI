@@ -109,14 +109,24 @@ function SustentabilidadPage() {
       return;
     }
     setGenerating(true);
-    const generated = await generateInitiatives(res);
-    if (organization) {
-      await load();
-    } else {
-      setInitiatives([...generated, ...initiatives]);
+    try {
+      const generated = await generateInitiatives(res);
+      if (organization) {
+        await load();
+      } else {
+        setInitiatives([...generated, ...initiatives]);
+      }
+      toast.success("Iniciativas generadas");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      toast.error(
+        message.includes("límite")
+          ? message
+          : "No pudimos generar las iniciativas. Probá de nuevo en unos minutos.",
+      );
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
-    toast.success("Iniciativas generadas");
   }
 
   async function moveInitiative(id: string, status: InitiativeStatus) {
