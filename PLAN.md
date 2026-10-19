@@ -66,7 +66,8 @@ Tras la migración, el deploy de producción se fue destrabando con una serie de
 
 - [x] `bun run seed` / `bun run seed:reset`: 7 organizaciones `[DEMO]` completas (análisis + 3 escenarios c/u, clientes sintéticos, propuestas en borrador, iniciativas con KPIs y mediciones, feedback), determinístico e idempotente, con guard anti-producción y usuarios solo en el emulador de Firebase. Helpers en `src/repositories/demoSeed.ts`. Lint y typecheck en verde.
 - [x] `bun run seed` verificado contra el Postgres local + emulador de Firebase (2026-10-19): 7 orgs, 14 análisis, 42 escenarios, 77 clientes, 29 propuestas, 14 iniciativas, 43 KPIs, 110 mediciones, 50 feedback, `firebaseUsersCreated: true`.
-- [ ] `bun run test` en verde (incluye `tests/unit/seed.test.ts`) y revisión visual de las 6 pantallas con el login demo.
+- [x] `bun run test` en verde: 73/73, incluido `tests/unit/seed.test.ts` (idempotencia, aislamiento, invariantes). Nota: el test borra los datos demo al terminar — re-correr `bun run seed` después de testear si se va a demostrar la app.
+- [ ] Revisión visual de las 6 pantallas con el login demo (`admin@demo-andina.example.com` / `Demo1234!`).
 - [ ] Decidir si se mergea a `develop` (el branch nace de `hotfix/grpc-dirname-shim`, mergear después de que ese hotfix tenga PR).
 
 ## Decisiones pendientes
