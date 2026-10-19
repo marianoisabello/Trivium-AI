@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Building2, Boxes, UserPlus, Check } from "lucide-react";
+import { Building2, Boxes, UserPlus, Check, Sparkles } from "lucide-react";
+import { UserMenu } from "@/components/layout/UserMenu";
 import { refreshIdToken } from "@/lib/firebase/client";
 import {
   completeOnboardingFn,
@@ -95,7 +96,13 @@ function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-12">
+    <div className="min-h-screen bg-background px-4 py-6">
+      <header className="mx-auto mb-8 flex w-full max-w-2xl items-center justify-between">
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <Sparkles className="size-4" aria-hidden /> Trivium AI
+        </span>
+        <UserMenu />
+      </header>
       <div className="mx-auto w-full max-w-2xl">
         <h1 className="text-2xl font-semibold tracking-tight">Configurá tu organización</h1>
         <p className="mt-1 text-sm text-muted-foreground">Tres pasos rápidos y empezamos.</p>

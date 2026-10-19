@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   LineChart,
@@ -7,24 +7,13 @@ import {
   Settings,
   Users,
   Bell,
-  LogOut,
   Menu,
   Sparkles,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { signOut as firebaseSignOut } from "firebase/auth";
-import { getFirebaseAuth } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { UserMenu } from "@/components/layout/UserMenu";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -46,18 +35,11 @@ export function AppLayout({
   description?: string;
   children: ReactNode;
 }) {
-  const { organization, fullName, user, role } = useAuth();
-  const navigate = useNavigate();
+  const { organization, role } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
 
   const items = NAV.filter((i) => (i.roles as readonly string[]).includes(role ?? "admin"));
-  const initials = (fullName ?? user?.email ?? "U").slice(0, 2).toUpperCase();
-
-  async function signOut() {
-    await firebaseSignOut(getFirebaseAuth());
-    navigate({ to: "/auth", replace: true });
-  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -133,32 +115,7 @@ export function AppLayout({
               3
             </Badge>
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Menú de usuario"
-              >
-                <Avatar className="size-9">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="truncate">
-                {fullName ?? user?.email ?? "Usuario"}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate({ to: "/configuracion" })}>
-                Configuración
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={signOut}>
-                <LogOut className="mr-2 size-4" /> Cerrar sesión
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserMenu />
         </header>
 
         <main className="flex-1 px-4 py-6 lg:px-8">
