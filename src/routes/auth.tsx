@@ -11,6 +11,7 @@ import { Sparkles } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { firebaseAuthErrorMessage } from "@/lib/firebase/authErrors";
 import { bootstrapFn } from "@/services/authService.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,7 +82,7 @@ function AuthPage() {
       await bootstrapFn({ data: { fullName: null, role: "admin" } });
     } catch (error) {
       setLoading(false);
-      toast.error("No pudimos iniciar sesión", { description: (error as Error).message });
+      toast.error("No pudimos iniciar sesión", { description: firebaseAuthErrorMessage(error) });
       return;
     }
     setLoading(false);
@@ -103,7 +104,7 @@ function AuthPage() {
       await bootstrapFn({ data: { fullName: fullName.trim(), role } });
     } catch (error) {
       setLoading(false);
-      toast.error("No pudimos crear la cuenta", { description: (error as Error).message });
+      toast.error("No pudimos crear la cuenta", { description: firebaseAuthErrorMessage(error) });
       return;
     }
     setLoading(false);
@@ -125,7 +126,7 @@ function AuthPage() {
       });
     } catch (error) {
       setForgotLoading(false);
-      toast.error("No pudimos enviar el email", { description: (error as Error).message });
+      toast.error("No pudimos enviar el email", { description: firebaseAuthErrorMessage(error) });
       return;
     }
     setForgotLoading(false);

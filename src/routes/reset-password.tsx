@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { firebaseAuthErrorMessage } from "@/lib/firebase/authErrors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,7 +79,7 @@ function ResetPasswordPage() {
     } catch (updateError) {
       setLoading(false);
       toast.error("No pudimos actualizar la contraseña", {
-        description: (updateError as Error).message,
+        description: firebaseAuthErrorMessage(updateError),
       });
       return;
     }
