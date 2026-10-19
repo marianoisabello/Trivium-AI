@@ -158,8 +158,13 @@ function EscenariosPage() {
       setScenarios(result);
       void loadHistory();
       toast.success("Escenarios generados");
-    } catch {
-      toast.error("No pudimos generar los escenarios. Probá de nuevo en unos minutos.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      toast.error(
+        message.includes("límite")
+          ? message
+          : "No pudimos generar los escenarios. Probá de nuevo en unos minutos.",
+      );
     } finally {
       setGenerating(false);
     }

@@ -139,14 +139,24 @@ function PropuestasAutomaticas({ orgId }: { orgId: string | null }) {
 
   async function handleGenerate() {
     setGenerating(true);
-    const generated = await generateProposals(segment, channel, cadence);
-    if (orgId) {
-      await load();
-    } else {
-      setRows([...generated, ...rows]);
+    try {
+      const generated = await generateProposals(segment, channel, cadence);
+      if (orgId) {
+        await load();
+      } else {
+        setRows([...generated, ...rows]);
+      }
+      toast.success("Propuestas generadas");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      toast.error(
+        message.includes("límite")
+          ? message
+          : "No pudimos generar las propuestas. Probá de nuevo en unos minutos.",
+      );
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
-    toast.success("Propuestas generadas");
   }
 
   async function updateStatus(p: Proposal, status: Proposal["status"]) {

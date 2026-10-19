@@ -43,7 +43,8 @@ export default tseslint.config(
   // server functions, rutas o componentes.
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: ["src/repositories/**"],
+    // tests/ puede usar Prisma/pg directo para seeds e asserts de integración/e2e.
+    ignores: ["src/repositories/**", "tests/**"],
     rules: {
       "no-restricted-imports": [
         "error",
