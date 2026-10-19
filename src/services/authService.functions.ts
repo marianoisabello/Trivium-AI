@@ -83,6 +83,15 @@ export const createOrganizationFn = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .validator((input: unknown) => createOrganizationInputSchema.parse(input))
   .handler(async ({ data, context }) => {
+    // Si el bootstrap falló antes (ej. DB sin credenciales), el user existe
+    // en Firebase pero no hay fila en profiles -- crear/asegurar acá antes
+    // del update que asigna la org.
+    await ensureProfile({
+      firebaseUid: context.firebaseUid,
+      email: context.email,
+      fullName: null,
+      role: context.role,
+    });
     const org = await createOrganization(data);
     await assignOrganization(context.firebaseUid, org.id);
     await getFirebaseAdminAuth().setCustomUserClaims(context.firebaseUid, {
