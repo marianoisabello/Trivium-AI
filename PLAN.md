@@ -62,6 +62,12 @@ Tras la migración, el deploy de producción se fue destrabando con una serie de
 - [ ] Limpieza: eliminar la carpeta `supabase/` (sin trackear) y los comentarios que aún mencionan Supabase en `src/services/*Service.ts` y `prisma/schema.prisma`.
 - [ ] Corregir los ~43 errores de `prettier/prettier` (CRLF) en `tests/e2e/` y decidir si se commitea esa carpeta.
 
+## Fase 7 — Datos demo para demos y pruebas · 2026-10-19 (rama `feat/seed-demo`)
+
+- [x] `bun run seed` / `bun run seed:reset`: 7 organizaciones `[DEMO]` completas (análisis + 3 escenarios c/u, clientes sintéticos, propuestas en borrador, iniciativas con KPIs y mediciones, feedback), determinístico e idempotente, con guard anti-producción y usuarios solo en el emulador de Firebase. Helpers en `src/repositories/demoSeed.ts`. Lint y typecheck en verde.
+- [ ] Correr `bun run seed` + `bun run test` contra el Postgres local de docker-compose (falta en el entorno donde se desarrolló: sin Docker) y verificar las 6 pantallas en el navegador.
+- [ ] Decidir si se mergea a `develop` (el branch nace de `hotfix/grpc-dirname-shim`, mergear después de que ese hotfix tenga PR).
+
 ## Decisiones pendientes
 - ~~Proveedor LLM inicial~~ → resuelto: Vertex AI (Gemini) como proveedor por defecto (`AI_PROVIDER=vertex`) para Escenarios, con `AI_PROVIDER=mock` disponible para desarrollo sin credenciales.
 - ¿Servicio Python separado para ML clásico o todo en BigQuery ML?
