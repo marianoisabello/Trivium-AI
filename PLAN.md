@@ -65,7 +65,8 @@ Tras la migración, el deploy de producción se fue destrabando con una serie de
 ## Fase 7 — Datos demo para demos y pruebas · 2026-10-19 (rama `feat/seed-demo`)
 
 - [x] `bun run seed` / `bun run seed:reset`: 7 organizaciones `[DEMO]` completas (análisis + 3 escenarios c/u, clientes sintéticos, propuestas en borrador, iniciativas con KPIs y mediciones, feedback), determinístico e idempotente, con guard anti-producción y usuarios solo en el emulador de Firebase. Helpers en `src/repositories/demoSeed.ts`. Lint y typecheck en verde.
-- [ ] Correr `bun run seed` + `bun run test` contra el Postgres local de docker-compose (falta en el entorno donde se desarrolló: sin Docker) y verificar las 6 pantallas en el navegador.
+- [x] `bun run seed` verificado contra el Postgres local + emulador de Firebase (2026-10-19): 7 orgs, 14 análisis, 42 escenarios, 77 clientes, 29 propuestas, 14 iniciativas, 43 KPIs, 110 mediciones, 50 feedback, `firebaseUsersCreated: true`.
+- [ ] `bun run test` en verde (incluye `tests/unit/seed.test.ts`) y revisión visual de las 6 pantallas con el login demo.
 - [ ] Decidir si se mergea a `develop` (el branch nace de `hotfix/grpc-dirname-shim`, mergear después de que ese hotfix tenga PR).
 
 ## Decisiones pendientes
